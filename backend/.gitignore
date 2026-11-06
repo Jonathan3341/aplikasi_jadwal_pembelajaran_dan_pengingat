@@ -1,0 +1,23 @@
+node_modules/
+.env
+database/*.db
+database/*.db-shm
+database/*.db-wal
+# Script administrasi lokal
+/update_user.js
+/update_role.js
+
+# Script administrasi lokal - jangan unggah
+/update_user.js
+/update_role.js
+/update-role.js
+
+# Script administrasi lokal
+/update_user.js
+/update_role.js
+/update-role.js
+
+# Local administration scripts
+/update_user.js
+/update_role.js
+/update-role.js
