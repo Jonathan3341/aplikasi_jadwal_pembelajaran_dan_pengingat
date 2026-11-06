@@ -1,231 +1,77 @@
-# Aplikasi Jadwal Pembelajaran dan Pengingat
+﻿# Aplikasi Jadwal Pembelajaran dan Pengingat
 
-Aplikasi Jadwal Pembelajaran dan Pengingat merupakan aplikasi berbasis Flutter dengan backend Node.js dan database SQLite. Aplikasi ini dikembangkan untuk membantu pengelolaan jadwal pembelajaran dan pengingat kegiatan akademik.
+Aplikasi Jadwal Pembelajaran dan Pengingat merupakan aplikasi yang dibuat untuk membantu mahasiswa melihat jadwal perkuliahan dan mengatur pengingat kegiatan akademik. Aplikasi ini dikembangkan menggunakan Flutter sebagai frontend, Node.js sebagai backend, dan SQLite sebagai database.
 
-## 1. Teknologi
+## Teknologi yang Digunakan
 
-**Frontend**
-- Flutter
-- Dart
-- Material Design
+Frontend menggunakan Flutter dan Dart. Backend menggunakan Node.js, Express.js, dan SQLite. Sistem autentikasi menggunakan JSON Web Token (JWT), sedangkan password pengguna diamankan menggunakan bcrypt.
 
-**Backend**
-- Node.js
-- Express.js
-- SQLite
-- JSON Web Token (JWT)
-- bcrypt
+## Fitur Aplikasi
 
-## 2. Fitur Utama
+Aplikasi memiliki fitur registrasi dan login pengguna, autentikasi JWT, refresh token, logout, serta pembagian hak akses berdasarkan role Murid, Guru, dan Admin.
 
-### Autentikasi Pengguna
-- Registrasi mahasiswa.
-- Login menggunakan email dan password.
-- Enkripsi password menggunakan bcrypt.
-- Autentikasi menggunakan JWT.
-- Access token dan refresh token.
-- Logout.
-- Pembagian hak akses berdasarkan role: Murid, Guru, dan Admin.
+Fitur akademik meliputi manajemen kelas, pembagian mahasiswa ke kelas, pengelolaan jadwal pembelajaran, dan pengingat jadwal.
 
-### Fitur Akademik
-- Manajemen kelas akademik.
-- Pembagian mahasiswa ke kelas.
-- Manajemen jadwal pembelajaran.
-- Pengingat jadwal.
+## Persiapan
 
-## 3. Struktur Proyek
+Sebelum menjalankan aplikasi, pastikan komputer sudah memiliki Flutter SDK, Dart SDK, Node.js, npm, Git, dan Google Chrome.
 
-```text
-aplikasi_jadwal_pembelajaran_dan_pengingat/
-│
-├── frontend/
-│   ├── lib/
-│   ├── android/
-│   ├── web/
-│   └── pubspec.yaml
-│
-├── backend/
-│   ├── src/
-│   │   ├── config/
-│   │   ├── controllers/
-│   │   ├── middleware/
-│   │   ├── routes/
-│   │   └── services/
-│   ├── database/
-│   ├── package.json
-│   └── .env.example
-│
-├── .gitignore
-└── README.md
-```
+Unduh proyek melalui repository GitHub, kemudian buka folder aplikasi_jadwal_pembelajaran_dan_pengingat.
 
-## 4. Persyaratan Sistem
+## Menjalankan Backend
 
-Pastikan perangkat sudah memiliki:
-- Flutter SDK dan Dart SDK.
-- Node.js dan npm.
-- Git.
-- Google Chrome.
+Buka terminal dan masuk ke folder backend. Jalankan npm install untuk menginstal dependency yang diperlukan.
 
-## 5. Cara Mengunduh Proyek
+Buat file konfigurasi lokal dengan menyalin .env.example menjadi .env menggunakan perintah Copy-Item .env.example .env melalui PowerShell.
 
-Clone repository:
+Buka file .env dan sesuaikan konfigurasi berikut:
 
-```bash
-git clone https://github.com/Jonathan3341/aplikasi_jadwal_pembelajaran_dan_pengingat.git
-```
+- PORT: 5000
+- NODE_ENV: development
+- CLIENT_ORIGIN: http://localhost:5001
+- JWT_ACCESS_SECRET: secret acak untuk access token
+- JWT_REFRESH_SECRET: secret acak yang berbeda untuk refresh token
+- ACCESS_TOKEN_EXPIRES: 15m
+- REFRESH_TOKEN_DAYS: 7
 
-Masuk ke folder proyek:
+Secret JWT dapat dibuat menggunakan Node.js dengan perintah node -e "console.log(require('crypto').randomBytes(32).toString('hex'))". Jalankan dua kali untuk mendapatkan dua secret yang berbeda.
 
-```bash
-cd aplikasi_jadwal_pembelajaran_dan_pengingat
-```
-
-## 6. Menjalankan Backend
-
-Masuk ke folder backend:
-
-```bash
-cd backend
-```
-
-Install dependency:
-
-```bash
-npm install
-```
-
-Buat file konfigurasi:
-
-Windows PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Buka `.env` dan isi konfigurasi berikut:
-
-```dotenv
-PORT=5000
-NODE_ENV=development
-CLIENT_ORIGIN=http://localhost:5001
-
-JWT_ACCESS_SECRET=ISI_SECRET_ACAK
-JWT_REFRESH_SECRET=ISI_SECRET_ACAK_BERBEDA
-
-ACCESS_TOKEN_EXPIRES=15m
-REFRESH_TOKEN_DAYS=7
-
-ADMIN_NAME=
-ADMIN_EMAIL=
-ADMIN_PASSWORD=
-```
-
-Generate dua secret JWT dengan perintah Node.js berikut. Jalankan masing-masing perintah satu kali:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-Masukkan hasil yang berbeda ke `JWT_ACCESS_SECRET` dan `JWT_REFRESH_SECRET`.
-
-Jalankan backend:
-
-```bash
-npm start
-```
-
-Backend berjalan pada:
-
-```text
-http://localhost:5000
-```
+Setelah konfigurasi selesai, jalankan backend menggunakan npm start. Backend berjalan pada alamat http://localhost:5000.
 
 Database SQLite akan dibuat secara otomatis ketika backend pertama kali dijalankan.
 
-Untuk memeriksa server, buka alamat tersebut melalui browser. Respons yang diharapkan:
+## Menjalankan Frontend
 
-```json
-{
-  "message": "Jadwal Pembelajaran API is running."
-}
-```
+Buka terminal baru dan masuk ke folder frontend. Jalankan flutter pub get untuk menginstal dependency Flutter.
 
-## 7. Menjalankan Frontend
+Jalankan aplikasi menggunakan perintah flutter run -d chrome --web-port=5001.
 
-Buka terminal baru dan masuk ke folder utama proyek:
+Aplikasi dapat diakses melalui browser pada alamat http://localhost:5001. Pastikan backend tetap berjalan ketika frontend digunakan.
 
-```bash
-cd aplikasi_jadwal_pembelajaran_dan_pengingat/frontend
-```
+## Pengujian Registrasi dan Login
 
-Install dependency:
+Buka aplikasi melalui browser, kemudian pilih halaman Register.
 
-```bash
-flutter pub get
-```
+Masukkan nama, NIM, jurusan, email, dan password. Setelah registrasi berhasil, kembali ke halaman Login dan masukkan email serta password yang telah didaftarkan.
 
-Jalankan aplikasi melalui Chrome:
-
-```bash
-flutter run -d chrome --web-port=5001
-```
-
-Buka aplikasi:
-
-```text
-http://localhost:5001
-```
-
-Pastikan backend tetap berjalan pada terminal pertama.
-
-## 8. Pengujian Register dan Login
-
-Fitur utama yang dapat diuji:
-
-1. Buka aplikasi melalui browser.
-2. Pilih halaman Register.
-3. Isi nama, NIM, jurusan, email, dan password.
-4. Tekan tombol Register.
-5. Pastikan proses registrasi berhasil.
-6. Kembali ke halaman Login.
-7. Masukkan email dan password yang telah didaftarkan.
-8. Tekan tombol Login.
-9. Pastikan pengguna berhasil masuk ke halaman utama.
-10. Uji Logout dan Login kembali.
+Jika login berhasil, pengguna akan diarahkan ke halaman utama aplikasi. Pengguna juga dapat melakukan logout dan login kembali menggunakan akun yang sama.
 
 Registrasi publik secara otomatis memberikan role Murid.
 
-## 9. Membuat Akun Admin (Opsional)
+## Akun Admin
 
-Untuk mencoba fitur administrasi, isi variabel `ADMIN_NAME`, `ADMIN_EMAIL`, dan `ADMIN_PASSWORD` pada `.env`.
+Apabila ingin mencoba fitur administrasi, akun Admin dapat dibuat melalui proses terpisah.
 
-Kemudian jalankan dari folder backend:
+Isi ADMIN_NAME, ADMIN_EMAIL, dan ADMIN_PASSWORD pada file .env, kemudian jalankan npm run create-admin dari folder backend.
 
-```bash
-npm run create-admin
-```
+## Konfigurasi Koneksi
 
-Gunakan email dan password tersebut untuk masuk sebagai Admin.
+Untuk Flutter Web, alamat backend yang digunakan adalah http://localhost:5000.
 
-## 10. Konfigurasi Alamat Backend
+Untuk Android Emulator, alamat backend yang digunakan adalah http://10.0.2.2:5000.
 
-| Platform | Alamat Backend |
-|---|---|
-| Flutter Web | `http://localhost:5000` |
-| Android Emulator | `http://10.0.2.2:5000` |
+## Catatan
 
-Untuk perangkat fisik atau jaringan berbeda, alamat backend perlu disesuaikan dengan alamat server yang digunakan.
+File .env dan database lokal tidak disertakan dalam repository. Setiap pengguna perlu membuat konfigurasi .env sendiri sebelum menjalankan backend.
 
-## 11. Keamanan
-
-- Password pengguna disimpan dalam bentuk hash menggunakan bcrypt.
-- Sistem menggunakan JWT untuk autentikasi.
-- Registrasi publik tidak memberikan hak akses Admin.
-- File `.env` tidak disertakan dalam repository.
-- Database lokal tidak disertakan dalam repository.
-- Secret JWT harus dibuat sendiri pada setiap lingkungan instalasi.
-
----
-
-**Proyek Aplikasi Jadwal Pembelajaran dan Pengingat**
+Registrasi umum hanya memberikan hak akses Murid. Akun Admin dibuat melalui proses administrasi terpisah.
