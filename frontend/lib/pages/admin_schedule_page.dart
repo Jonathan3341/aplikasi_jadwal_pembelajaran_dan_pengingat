@@ -11,6 +11,7 @@ class AdminSchedulesPage extends StatefulWidget {
 
 class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
   List<Map<String, dynamic>> _classes = [];
+  List<Map<String, dynamic>> _teachers = [];
   List<Map<String, dynamic>> _schedules = [];
 
   bool _isLoading = true;
@@ -41,6 +42,7 @@ class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
     try {
       final results = await Future.wait([
         ApiService.instance.fetchClasses(),
+        ApiService.instance.fetchTeachers(),
         ApiService.instance.fetchSchedules(),
       ]);
 
@@ -48,7 +50,8 @@ class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
 
       setState(() {
         _classes = List<Map<String, dynamic>>.from(results[0]);
-        _schedules = List<Map<String, dynamic>>.from(results[1]);
+        _teachers = List<Map<String, dynamic>>.from(results[1]);
+        _schedules = List<Map<String, dynamic>>.from(results[2]);
         _isLoading = false;
       });
     } catch (error) {
@@ -153,6 +156,11 @@ class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
       return;
     }
 
+    if (_teachers.isEmpty) {
+      _showMessage('Tambahkan akun Guru terlebih dahulu.');
+      return;
+    }
+
     final isEditing = schedule != null;
 
     final subjectController = TextEditingController(
@@ -164,7 +172,9 @@ class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
     );
 
     final lecturerController = TextEditingController(
-      text: schedule?['lecturer']?.toString() ?? '',
+      text: schedule?['teacher_name']?.toString() ??
+          schedule?['lecturer']?.toString() ??
+          '',
     );
 
     final notesController = TextEditingController(
@@ -186,10 +196,21 @@ class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
     );
 
     if (!_classes.any(
-      (item) => int.tryParse(item['id'].toString()) == selectedClassId,
+          (item) => int.tryParse(item['id'].toString()) == selectedClassId,
     )) {
       selectedClassId = null;
     }
+
+    int? selectedTeacherId = int.tryParse(
+      schedule?['teacher_id']?.toString() ?? '',
+    );
+
+    if (!_teachers.any(
+          (item) => int.tryParse(item['id'].toString()) == selectedTeacherId,
+    )) {
+      selectedTeacherId = null;
+    }
+
 
     int selectedWeekday = _weekdayNumber(schedule?['weekday'] ?? 1);
 
@@ -293,6 +314,51 @@ class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
                             return null;
                           },
                         ),
+
+                        const SizedBox(height: 14),
+
+                        DropdownButtonFormField<int>(
+                          value: selectedTeacherId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Guru Pengajar',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _teachers.map((item) {
+                            final id = int.parse(item['id'].toString());
+                            final name = item['name']?.toString() ?? 'Tanpa nama';
+                            final major = item['major']?.toString() ?? '';
+
+                            return DropdownMenuItem<int>(
+                              value: id,
+                              child: Text(
+                                major.isEmpty ? name : '$name - $major',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              selectedTeacherId = value;
+
+                              final teacher = _teachers.firstWhere(
+                                    (item) => item['id'].toString() == value.toString(),
+                              );
+
+                              lecturerController.text =
+                                  teacher['name']?.toString() ?? '';
+                            });
+                          },
+                          validator: (value) {
+                            if (value == null) {
+                              return 'Pilih Guru pengajar';
+                            }
+
+                            return null;
+                          },
+                        ),
+
+
                         const SizedBox(height: 14),
 
                         DropdownButtonFormField<int>(
@@ -466,6 +532,7 @@ class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
                     Navigator.pop(dialogContext, {
                       'subject': subjectController.text.trim(),
                       'class_id': selectedClassId,
+                      'teacher_id': selectedTeacherId,
                       'weekday': selectedWeekday,
                       'start_time': startController.text,
                       'end_time': endController.text,
@@ -560,7 +627,9 @@ class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
     final start = _formatTime(schedule['start_time']);
     final end = _formatTime(schedule['end_time']);
     final room = schedule['room']?.toString() ?? '-';
-    final lecturer = schedule['lecturer']?.toString() ?? '-';
+    final lecturer = schedule['teacher_name']?.toString() ??
+        schedule['lecturer']?.toString() ??
+        '-';
     final className = _className(schedule['class_id']);
     final reminderEnabled = _toBool(schedule['reminder_enabled']);
 

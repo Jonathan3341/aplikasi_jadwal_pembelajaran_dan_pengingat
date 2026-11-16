@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_data.dart';
-import '../notification_service.dart';
+import '../services/notification_service.dart';
 
 import '../widgets/empty_state.dart';
 import '../widgets/calendar_widget.dart';

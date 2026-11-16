@@ -1,4 +1,4 @@
-
+const bcrypt = require('bcrypt');
 const db = require('../config/database');
 
 // Mengambil daftar kelas akademik.
@@ -328,6 +328,38 @@ function getStudents(req, res) {
   }
 }
 
+// Mengambil daftar akun Guru untuk penugasan jadwal.
+function getTeachers(req, res) {
+  try {
+    const teachers = db.prepare(`
+      SELECT
+        id,
+        name,
+        email,
+        major
+      FROM users
+      WHERE role = 'Guru'
+      ORDER BY
+        CASE
+          WHEN TRIM(name) = '' THEN email
+          ELSE name
+        END COLLATE NOCASE ASC
+    `).all();
+
+    return res.json({
+      message: 'Daftar Guru berhasil diambil.',
+      total: teachers.length,
+      data: teachers,
+    });
+  } catch (error) {
+    console.error('Get teachers error:', error);
+
+    return res.status(500).json({
+      message: 'Gagal mengambil daftar Guru.',
+    });
+  }
+}
+
 // Menempatkan mahasiswa ke kelas berdasarkan NIM.
 // class_id boleh null untuk mengeluarkan mahasiswa dari kelas.
 function assignStudentToClass(req, res) {
@@ -426,11 +458,120 @@ function assignStudentToClass(req, res) {
   }
 }
 
+
+async function createTeacher(req, res) {
+  try {
+    const { name, email, password, major } = req.body;
+
+    // Validasi input.
+    if (
+      typeof name !== 'string' ||
+      typeof email !== 'string' ||
+      typeof password !== 'string' ||
+      typeof major !== 'string' ||
+      !name.trim() ||
+      !email.trim() ||
+      !password ||
+      !major.trim()
+    ) {
+      return res.status(400).json({
+        message: 'Nama, email, password, dan jurusan wajib diisi.',
+      });
+    }
+
+    const normalizedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedMajor = major.trim();
+
+    if (
+      normalizedName.length > 100 ||
+      normalizedMajor.length > 100
+    ) {
+      return res.status(400).json({
+        message: 'Nama atau jurusan terlalu panjang.',
+      });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return res.status(400).json({
+        message: 'Format email tidak valid.',
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        message: 'Password minimal 8 karakter.',
+      });
+    }
+
+    if (Buffer.byteLength(password, 'utf8') > 72) {
+      return res.status(400).json({
+        message: 'Password terlalu panjang.',
+      });
+    }
+
+    // Periksa email yang sudah terdaftar.
+    const existingUser = db.prepare(`
+      SELECT id FROM users WHERE email = ?
+    `).get(normalizedEmail);
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: 'Email sudah terdaftar.',
+      });
+    }
+
+    // Hash password sebelum disimpan.
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const result = db.prepare(`
+      INSERT INTO users (
+        name,
+        email,
+        password,
+        major,
+        role
+      )
+      VALUES (?, ?, ?, ?, 'Guru')
+    `).run(
+      normalizedName,
+      normalizedEmail,
+      passwordHash,
+      normalizedMajor
+    );
+
+    return res.status(201).json({
+      message: 'Akun Guru berhasil dibuat.',
+      data: {
+        id: String(result.lastInsertRowid),
+        name: normalizedName,
+        email: normalizedEmail,
+        major: normalizedMajor,
+        role: 'Guru',
+      },
+    });
+  } catch (error) {
+    console.error('Create teacher error:', error);
+
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(409).json({
+        message: 'Email sudah terdaftar.',
+      });
+    }
+
+    return res.status(500).json({
+      message: 'Gagal membuat akun Guru.',
+    });
+  }
+}
+
 module.exports = {
   getClasses,
   createClass,
   updateClass,
   deleteClass,
   getStudents,
+  getTeachers,
+  createTeacher,
   assignStudentToClass,
 };

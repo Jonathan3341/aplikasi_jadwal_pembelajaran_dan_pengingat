@@ -4,7 +4,8 @@ import '../app_data.dart';
 import '../services/auth_service.dart';
 
 import 'login_page.dart';
-
+import '../services/api_service.dart';
+import 'student_assignment_detail_page.dart';
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -14,11 +15,13 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   late Future<Map<String, dynamic>> _profileFuture;
+  late Future<List<dynamic>> _submissionsFuture;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadSubmissions();
   }
 
   void _loadProfile() {
@@ -26,13 +29,32 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _refreshProfile() async {
-    setState(_loadProfile);
-    await _profileFuture;
+    setState(() {
+      _loadProfile();
+      _loadSubmissions();
+    });
+
+    await Future.wait([
+      _profileFuture,
+      _submissionsFuture,
+    ]);
   }
 
-  // ==========================================
+  void _loadSubmissions() {
+    _submissionsFuture = _fetchStudentSubmissions();
+  }
+
+  Future<List<dynamic>> _fetchStudentSubmissions() async {
+    final profile = await _profileFuture;
+
+    if (profile['role']?.toString().toLowerCase() != 'murid') {
+      return [];
+    }
+
+    return await ApiService.instance.fetchMySubmissions();
+  }
+
   // LOGOUT
-  // ==========================================
 
   Future<void> _logout() async {
     final confirm = await showDialog<bool>(
@@ -87,9 +109,180 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // ==========================================
+  Widget _buildStudentAssignmentSection(List<dynamic> submissions) {
+    final graded = submissions.where((item) {
+      return item['status']?.toString() == 'graded' &&
+          item['grade'] != null;
+    }).toList();
+
+    final pending = submissions.length - graded.length;
+
+    final grades = graded
+        .map((item) => double.tryParse(item['grade'].toString()) ?? 0)
+        .toList();
+
+    final average = grades.isEmpty
+        ? 0.0
+        : grades.reduce((a, b) => a + b) / grades.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle('Performa Akademik'),
+        Card(
+          color: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _performanceItem(
+                        'Dikumpulkan',
+                        submissions.length.toString(),
+                        Icons.assignment_turned_in_outlined,
+                      ),
+                    ),
+                    Expanded(
+                      child: _performanceItem(
+                        'Sudah Dinilai',
+                        graded.length.toString(),
+                        Icons.grade_outlined,
+                      ),
+                    ),
+                    Expanded(
+                      child: _performanceItem(
+                        'Menunggu',
+                        pending.toString(),
+                        Icons.pending_actions_outlined,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 28),
+                const Text(
+                  'Rata-rata Nilai',
+                  style: TextStyle(color: Colors.black54),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  grades.isEmpty ? '-' : average.toStringAsFixed(1),
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFFF7A00),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 18),
+
+        _sectionTitle('Riwayat Pengumpulan Tugas'),
+        if (submissions.isEmpty)
+          const Card(
+            color: Colors.white,
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(
+                child: Text('Belum ada riwayat pengumpulan tugas.'),
+              ),
+            ),
+          )
+        else
+          ...submissions.map((item) => _buildSubmissionCard(item)),
+      ],
+    );
+  }
+
+  Widget _performanceItem(String title, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: const Color(0xFFFF7A00), size: 25),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 11, color: Colors.black54),
+        ),
+      ],
+    );
+  }
+
   // BUILD
-  // ==========================================
+  Widget _buildSubmissionCard(Map<String, dynamic> item) {
+    final assignmentId = int.tryParse(
+      item['assignment_id']?.toString() ?? '',
+    );
+
+    final title = item['assignment_title']?.toString() ?? 'Tugas';
+
+    final status = item['status']?.toString() ?? 'submitted';
+    final isGraded = status == 'graded' && item['grade'] != null;
+
+    final grade = item['grade']?.toString() ?? '-';
+    final submittedAt = item['submitted_at']?.toString() ?? '';
+
+    return Card(
+      color: Colors.white,
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: const Color(0xFFFFE5D0),
+          child: Icon(
+            isGraded ? Icons.grade : Icons.assignment_outlined,
+            color: const Color(0xFFFF7A00),
+          ),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (submittedAt.isNotEmpty)
+              Text('Dikumpulkan: $submittedAt'),
+            const SizedBox(height: 4),
+            Text(
+              isGraded ? 'Nilai: $grade' : 'Menunggu penilaian',
+              style: TextStyle(
+                color: isGraded ? Colors.green : Colors.orange,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (item['feedback'] != null &&
+                item['feedback'].toString().trim().isNotEmpty)
+              Text('Feedback: ${item['feedback']}'),
+          ],
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: assignmentId == null
+            ? null
+            : () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => StudentAssignmentDetailPage(
+                assignmentId: assignmentId,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -165,9 +358,8 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ==================================
+
                   // PROFILE HEADER
-                  // ==================================
 
                   Card(
                     color: Colors.white,
@@ -237,9 +429,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   const SizedBox(height: 18),
 
-                  // ==================================
                   // PERSONAL INFORMATION
-                  // ==================================
+
                   _sectionTitle('Informasi Pribadi'),
 
                   Card(
@@ -275,86 +466,48 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   const SizedBox(height: 18),
 
-                  // ==================================
-                  // ACADEMIC PERFORMANCE
-                  // ==================================
-                  _sectionTitle('Performa Akademik'),
-
-                  Card(
-                    color: Colors.white,
-                    child: const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.bar_chart_rounded,
-                            color: Color(0xFFFF7A00),
-                            size: 38,
-                          ),
-                          SizedBox(height: 10),
-                          Text(
-                            'Belum ada data penilaian',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 5),
-                          Text(
-                            'Nilai dan perkembangan akademik akan '
-                            'ditampilkan setelah guru melakukan '
-                            'penilaian terhadap tugas kamu.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.black54,
-                              fontSize: 12,
+                  if (role.toLowerCase() == 'murid') ...[
+                    FutureBuilder<List<dynamic>>(
+                      future: _submissionsFuture,
+                      builder: (context, submissionSnapshot) {
+                        if (submissionSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFFFF7A00),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                          );
+                        }
 
-                  const SizedBox(height: 18),
-
-                  // ==================================
-                  // SUBMITTED ASSIGNMENTS
-                  // ==================================
-                  _sectionTitle('Riwayat Pengumpulan Tugas'),
-
-                  Card(
-                    color: Colors.white,
-                    child: const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.assignment_outlined,
-                            color: Color(0xFFFF7A00),
-                            size: 38,
-                          ),
-                          SizedBox(height: 10),
-                          Text(
-                            'Belum ada riwayat pengumpulan',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 5),
-                          Text(
-                            'Tugas yang kamu kumpulkan melalui fitur '
-                            'Hand In akan ditampilkan di bagian ini.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.black54,
-                              fontSize: 12,
+                        if (submissionSnapshot.hasError) {
+                          return Card(
+                            color: Colors.white,
+                            child: ListTile(
+                              leading: const Icon(
+                                Icons.error_outline,
+                                color: Colors.red,
+                              ),
+                              title: const Text('Riwayat tugas gagal dimuat'),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.refresh),
+                                onPressed: _refreshProfile,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          );
+                        }
+
+                        return _buildStudentAssignmentSection(
+                          submissionSnapshot.data ?? [],
+                        );
+                      },
                     ),
-                  ),
+                  ],
 
-                  const SizedBox(height: 28),
-
-                  // ==================================
                   // LOGOUT
-                  // ==================================
+
                   SizedBox(
                     height: 50,
                     child: OutlinedButton.icon(
@@ -382,9 +535,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // ==========================================
   // REUSABLE WIDGETS
-  // ==========================================
 
   Widget _sectionTitle(String title) {
     return Padding(

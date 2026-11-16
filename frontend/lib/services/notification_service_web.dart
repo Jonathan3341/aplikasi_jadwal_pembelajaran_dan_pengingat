@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:html' as html;
 
-import 'app_data.dart';
+import '../app_data.dart';
 
 class NotificationService {
   NotificationService._();

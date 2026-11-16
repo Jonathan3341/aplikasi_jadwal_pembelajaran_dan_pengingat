@@ -33,6 +33,20 @@ class ApiService {
     return 'http://localhost:5000';
   }
 
+  // Mengambil daftar murid dari kelas yang ditugaskan kepada Guru.
+  Future<List<Map<String, dynamic>>> fetchClassStudents(int classId) async {
+    final response = await dio.get(
+      '/api/schedules/classes/$classId/students',
+    );
+
+    final responseData = response.data as Map<String, dynamic>;
+    final students = responseData['data'] as List;
+
+    return students
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
   // Mengambil seluruh jadwal dari backend.
   Future<List<Map<String, dynamic>>> fetchSchedules() async {
     final response = await dio.get('/api/schedules');
@@ -158,6 +172,40 @@ class ApiService {
     }).toList();
   }
 
+
+
+// ADMIN - TEACHERS
+
+// Mengambil daftar akun Guru dari backend.
+  Future<List<Map<String, dynamic>>> fetchTeachers() async {
+    final response = await dio.get('/api/admin/teachers');
+
+    final data = response.data['data'] as List;
+
+    return data
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  // Membuat akun Guru baru.
+  Future<Map<String, dynamic>> createTeacher({
+    required String name,
+    required String email,
+    required String password,
+    required String major,
+  }) async {
+    final response = await dio.post(
+      '/api/admin/teachers',
+      data: {
+        'name': name,
+        'email': email,
+        'password': password,
+        'major': major,
+      },
+    );
+
+    return Map<String, dynamic>.from(response.data['data']);
+  }
   // ==========================================
   // ADMIN - ACADEMIC CLASSES
   // ==========================================
@@ -231,4 +279,201 @@ class ApiService {
 
     return Map<String, dynamic>.from(response.data['data']);
   }
+
+  // ==========================================
+  // ASSIGNMENTS - TUGAS GURU DAN MURID
+  // ==========================================
+
+  // Mengambil daftar tugas sesuai role pengguna.
+  Future<List<Map<String, dynamic>>> fetchAssignments() async {
+    final response = await dio.get('/api/assignments');
+
+    final data = response.data['data'] as List;
+
+    return data
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  // Mengambil detail tugas.
+  Future<Map<String, dynamic>> fetchAssignmentDetail(int id) async {
+    final response = await dio.get('/api/assignments/$id');
+
+    return Map<String, dynamic>.from(response.data['data']);
+  }
+
+  // Membuat tugas baru beserta lampiran.
+  Future<Map<String, dynamic>> createAssignment({
+    required int classId,
+    required String title,
+    required String description,
+    String? dueAt,
+    List<MultipartFile> files = const [],
+    List<Map<String, dynamic>> links = const [],
+  }) async {
+    final formData = FormData();
+
+    formData.fields.add(MapEntry('class_id', classId.toString()));
+    formData.fields.add(MapEntry('title', title));
+    formData.fields.add(MapEntry('description', description));
+
+    if (dueAt != null && dueAt.isNotEmpty) {
+      formData.fields.add(MapEntry('due_at', dueAt));
+    }
+
+    formData.fields.add(MapEntry('links', jsonEncode(links)));
+
+    for (final file in files) {
+      formData.files.add(MapEntry('attachments', file));
+    }
+
+    final response = await dio.post(
+      '/api/assignments',
+      data: formData,
+    );
+
+    return Map<String, dynamic>.from(response.data['data']);
+  }
+
+  // ==========================================
+  // SUBMISSIONS - PENGUMPULAN TUGAS
+  // ==========================================
+
+  // Murid mengumpulkan jawaban tugas.
+  Future<Map<String, dynamic>> submitAssignment({
+    required int assignmentId,
+    List<MultipartFile> files = const [],
+    List<Map<String, dynamic>> links = const [],
+  }) async {
+    final formData = FormData();
+
+    formData.fields.add(
+      MapEntry('links', jsonEncode(links)),
+    );
+
+    for (final file in files) {
+      formData.files.add(MapEntry('attachments', file));
+    }
+
+    final response = await dio.post(
+      '/api/submissions/$assignmentId',
+      data: formData,
+    );
+
+    return Map<String, dynamic>.from(response.data['data']);
+  }
+
+  // Guru melihat pengumpulan untuk tugas miliknya.
+  Future<List<Map<String, dynamic>>> fetchAssignmentSubmissions(
+      int assignmentId,
+      ) async {
+    final response = await dio.get(
+      '/api/submissions/assignment/$assignmentId',
+    );
+
+    final data = response.data['data'] as List;
+
+    return data
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  // Murid melihat riwayat pengumpulan tugas.
+  Future<List<Map<String, dynamic>>> fetchMySubmissions() async {
+    final response = await dio.get(
+      '/api/submissions/my-submissions',
+    );
+
+    final data = response.data['data'] as List;
+
+    return data
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  // Guru memberikan nilai dan feedback.
+  Future<Map<String, dynamic>> gradeSubmission({
+    required int submissionId,
+    required double grade,
+    String feedback = '',
+  }) async {
+    final response = await dio.put(
+      '/api/submissions/$submissionId/grade',
+      data: {
+        'grade': grade,
+        'feedback': feedback,
+      },
+    );
+
+    return Map<String, dynamic>.from(response.data['data']);
+  }
+
+  // ==========================================
+  // DOWNLOAD LAMPIRAN
+  // ==========================================
+
+  // Mengunduh lampiran tugas dari Guru.
+  Future<List<int>> downloadAssignmentAttachment(int attachmentId) async {
+    final response = await dio.get<List<int>>(
+      '/api/assignments/attachments/$attachmentId/download',
+      options: Options(responseType: ResponseType.bytes),
+    );
+
+    return response.data ?? [];
+  }
+
+  // Mengunduh jawaban Murid.
+  Future<List<int>> downloadSubmissionAttachment(int attachmentId) async {
+    final response = await dio.get<List<int>>(
+      '/api/submissions/attachments/$attachmentId/download',
+      options: Options(responseType: ResponseType.bytes),
+    );
+
+    return response.data ?? [];
+  }
+
+
+  // ==========================================
+  // ATTENDANCE - ABSENSI MURID
+  // ==========================================
+
+  // Mengambil jadwal dan status absensi hari ini.
+  Future<Map<String, dynamic>> fetchAvailableAttendance() async {
+    final response = await dio.get('/api/attendance/available');
+
+    return Map<String, dynamic>.from(response.data);
+  }
+
+  // Mengirim absensi berdasarkan lokasi GPS.
+  Future<Map<String, dynamic>> submitAttendance({
+    required int scheduleId,
+    required double latitude,
+    required double longitude,
+    required double accuracy,
+  }) async {
+    final response = await dio.post(
+      '/api/attendance',
+      data: {
+        'schedule_id': scheduleId,
+        'latitude': latitude,
+        'longitude': longitude,
+        'accuracy': accuracy,
+      },
+    );
+
+    return Map<String, dynamic>.from(response.data);
+  }
+
+  // Mengambil riwayat absensi Murid.
+  Future<List<Map<String, dynamic>>> fetchMyAttendance() async {
+    final response = await dio.get('/api/attendance/my-history');
+
+    final data = response.data['attendance'] as List;
+
+    return data
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+
 }

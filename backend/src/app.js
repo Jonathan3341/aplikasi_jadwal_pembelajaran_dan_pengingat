@@ -7,6 +7,10 @@ const cookieParser = require('cookie-parser');
 const userRoutes = require('./routes/userRoutes');
 const scheduleRoutes = require('./routes/scheduleRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const assignmentRoutes = require('./routes/assignmentRoutes');
+const submissionRoutes = require('./routes/submissionRoutes');
+const attendanceRoutes = require('./routes/attendanceRoutes');
+
 const {
   cleanupExpiredTokens,
 } = require('./controllers/authController');
@@ -40,12 +44,22 @@ app.use('/api/schedules', scheduleRoutes);
 // Route khusus Admin.
 app.use('/api/admin', adminRoutes);
 
+// Route khusus tugas
+app.use('/api/assignments', assignmentRoutes);
+
+//Route khusus pengumpulan tugas
+app.use('/api/submissions', submissionRoutes);
+
+// Route untuk Attendance
+app.use('/api/attendance', attendanceRoutes);
+
 // Route yang tidak ditemukan.
 app.use((req, res) => {
   res.status(404).json({
     message: 'Endpoint tidak ditemukan.',
   });
 });
+
 
 // Penanganan error umum.
 app.use((error, req, res, next) => {

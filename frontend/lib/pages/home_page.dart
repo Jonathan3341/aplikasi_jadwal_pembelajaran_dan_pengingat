@@ -2,24 +2,36 @@ import 'package:flutter/material.dart';
 
 import '../app_data.dart';
 
+import '../services/api_service.dart';
+import '../services/auth_service.dart';
+
 import '../widgets/schedule_card.dart';
 import '../widgets/reminder_card.dart';
 import '../widgets/section_header.dart';
+
 import 'learning_tasks_page.dart';
 import 'api_tasks_page.dart';
+import 'attendance_map_page.dart';
 
-import '../services/auth_service.dart';
-
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key, this.onNavigate});
 
   final ValueChanged<int>? onNavigate;
 
   @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  // Key untuk memperbarui kartu absensi setelah kembali
+  // dari halaman Absensi Lokasi.
+  final GlobalKey<_AttendanceSemesterCardState> _attendanceCardKey =
+      GlobalKey<_AttendanceSemesterCardState>();
+
+  @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: AppData.instance,
-
       builder: (context, _) {
         final now = DateTime.now();
 
@@ -40,30 +52,24 @@ class HomePage extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             toolbarHeight: 80,
-
             titleSpacing: 16,
-
             title: Row(
               children: [
                 Container(
                   width: 48,
                   height: 48,
-
                   decoration: const BoxDecoration(
                     color: Color(0xFFFFE5D0),
                     shape: BoxShape.circle,
                   ),
-
                   child: const Icon(
                     Icons.person,
                     size: 30,
                     color: Color(0xFFFF7A00),
                   ),
                 ),
-
                 const SizedBox(width: 10),
-
-                Expanded(child: _ProfileHeader()),
+                const Expanded(child: _ProfileHeader()),
               ],
             ),
           ),
@@ -71,14 +77,14 @@ class HomePage extends StatelessWidget {
           body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 90),
-
               child: Column(
                 children: [
                   _dateCard(),
 
                   const SizedBox(height: 10),
 
-                  _attendanceCard(),
+                  // Kehadiran sekarang mengambil data dari API.
+                  _AttendanceSemesterCard(key: _attendanceCardKey),
 
                   const SizedBox(height: 10),
 
@@ -138,25 +144,22 @@ class HomePage extends StatelessWidget {
                   SectionHeader(
                     title: 'Jadwal Hari Ini',
                     onPressed: () {
-                      onNavigate?.call(1);
+                      widget.onNavigate?.call(1);
                     },
                   ),
 
                   if (todaySchedules.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(24),
-
                       child: Text('Tidak ada jadwal hari ini.'),
                     ),
 
                   ...todaySchedules.map(
                     (schedule) => ScheduleCard(
                       schedule: schedule,
-
                       onTap: () {
                         Navigator.push(
                           context,
-
                           MaterialPageRoute(
                             builder: (_) =>
                                 ScheduleDetailPage(schedule: schedule),
@@ -171,14 +174,13 @@ class HomePage extends StatelessWidget {
                   SectionHeader(
                     title: 'Pengingat Terdekat',
                     onPressed: () {
-                      onNavigate?.call(2);
+                      widget.onNavigate?.call(2);
                     },
                   ),
 
                   if (reminders.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(24),
-
                       child: Text('Belum ada pengingat.'),
                     ),
 
@@ -193,29 +195,22 @@ class HomePage extends StatelessWidget {
           floatingActionButton: SizedBox(
             width: 170,
             height: 42,
-
             child: FloatingActionButton.extended(
               backgroundColor: const Color(0xFFFF7A00),
-
               foregroundColor: Colors.white,
-
-              onPressed: () {
-                if (todaySchedules.isEmpty) {
-                  return;
-                }
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Jadwal hari ini: '
-                      '${todaySchedules.length} kelas',
-                    ),
-                  ),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AttendanceMapPage()),
                 );
+
+                // Setelah kembali dari halaman absensi,
+                // ambil ulang data kehadiran dari backend.
+                if (!mounted) return;
+
+                _attendanceCardKey.currentState?.loadAttendance();
               },
-
               icon: const Icon(Icons.check_circle_outline, size: 18),
-
               label: const Text(
                 'Absen Sekarang',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
@@ -235,92 +230,337 @@ class HomePage extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-
       padding: const EdgeInsets.symmetric(vertical: 6),
-
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
-
       child: Center(
         child: Text(
           'Hari ini: '
           '${now.day}/'
           '${now.month}/'
           '${now.year}',
-
           style: const TextStyle(fontSize: 10, color: Colors.black54),
         ),
       ),
     );
   }
+}
 
-  Widget _attendanceCard() {
+// KARTU KEHADIRAN SEMESTER
+
+class _AttendanceSemesterCard extends StatefulWidget {
+  const _AttendanceSemesterCard({super.key});
+
+  @override
+  State<_AttendanceSemesterCard> createState() =>
+      _AttendanceSemesterCardState();
+}
+
+class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
+  final ApiService _apiService = ApiService.instance;
+
+  List<Map<String, dynamic>> _attendanceRecords = [];
+
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    loadAttendance();
+  }
+
+  // Mengambil riwayat absensi langsung dari backend.
+  Future<void> loadAttendance() async {
+    if (!mounted || _isLoading && _attendanceRecords.isNotEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final records = await _apiService.fetchMyAttendance();
+
+      if (!mounted) return;
+
+      // Endpoint saat ini mengembalikan seluruh riwayat absensi.
+      // Semua record yang dikembalikan dihitung.
+      setState(() {
+        _attendanceRecords = records;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // Menghitung kehadiran tepat waktu.
+  int get _presentCount {
+    return _attendanceRecords.where((item) {
+      final status = item['status']?.toString().toLowerCase();
+
+      return status == 'hadir';
+    }).length;
+  }
+
+  // Menghitung kehadiran terlambat.
+  int get _lateCount {
+    return _attendanceRecords.where((item) {
+      final status = item['status']?.toString().toLowerCase();
+
+      return status == 'terlambat';
+    }).length;
+  }
+
+  // Total semua record absensi.
+  int get _totalAttendance {
+    return _attendanceRecords.length;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-
       padding: const EdgeInsets.all(12),
-
       decoration: BoxDecoration(
         color: Colors.white,
-
         borderRadius: BorderRadius.circular(10),
-
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-
         children: [
-          const Text(
-            'Kehadiran Semester Ini',
+          // Judul dan tombol refresh.
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Kehadiran Semester Ini',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+              ),
 
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              IconButton(
+                tooltip: 'Perbarui kehadiran',
+                visualDensity: VisualDensity.compact,
+                onPressed: _isLoading ? null : loadAttendance,
+                icon: const Icon(
+                  Icons.refresh,
+                  size: 20,
+                  color: Color(0xFFFF7A00),
+                ),
+              ),
+            ],
           ),
 
-          const Align(
-            alignment: Alignment.centerRight,
+          const SizedBox(height: 8),
 
-            child: Text(
-              '95%',
+          if (_isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_errorMessage != null)
+            _buildError()
+          else
+            _buildAttendanceStatistics(),
+        ],
+      ),
+    );
+  }
 
-              style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
+  // Tampilan statistik kehadiran.
+  Widget _buildAttendanceStatistics() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Total absensi tercatat',
+          style: TextStyle(fontSize: 11, color: Colors.black54),
+        ),
+
+        const SizedBox(height: 2),
+
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '$_totalAttendance',
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFFF7A00),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(left: 6, bottom: 5),
+              child: Text(
+                'pertemuan',
+                style: TextStyle(fontSize: 11, color: Colors.black54),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatisticItem(
+                label: 'Hadir',
+                count: _presentCount,
+                color: Colors.green,
+                icon: Icons.check_circle_outline,
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            Expanded(
+              child: _buildStatisticItem(
+                label: 'Terlambat',
+                count: _lateCount,
+                color: Colors.orange,
+                icon: Icons.access_time,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        Text(
+          _totalAttendance == 0
+              ? 'Belum ada data absensi yang tersimpan.'
+              : 'Data diperbarui dari riwayat absensi server.',
+          style: const TextStyle(fontSize: 10, color: Colors.black54),
+        ),
+
+        const SizedBox(height: 4),
+
+        if (_totalAttendance > 0)
+          Text(
+            'Terakhir diperbarui: ${TimeOfDay.now().format(context)}',
+            style: const TextStyle(fontSize: 10, color: Colors.black38),
+          ),
+      ],
+    );
+  }
+
+  // Komponen angka Hadir dan Terlambat.
+  Widget _buildStatisticItem({
+    required String label,
+    required int count,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color),
+
+          const SizedBox(width: 7),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 10, color: Colors.black54),
+                ),
+              ],
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-
-            child: const LinearProgressIndicator(
-              value: 0.95,
-              minHeight: 7,
-
-              backgroundColor: Color(0xFFE2E2E2),
-
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4A9BD3)),
-            ),
+  // Tampilan jika API gagal diakses.
+  Widget _buildError() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 18),
+              SizedBox(width: 6),
+              Text(
+                'Gagal mengambil data kehadiran',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
 
-          const SizedBox(height: 5),
+          const SizedBox(height: 6),
 
-          const Text(
-            'Hadir: 19 / 20 Pertemuan',
+          Text(
+            _errorMessage!,
+            style: const TextStyle(fontSize: 11, color: Colors.black54),
+          ),
 
-            style: TextStyle(fontSize: 10, color: Colors.black54),
+          const SizedBox(height: 8),
+
+          TextButton.icon(
+            onPressed: loadAttendance,
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Coba Lagi'),
           ),
         ],
       ),
     );
   }
 }
+
+// HEADER PROFIL MURID
 
 class _ProfileHeader extends StatefulWidget {
   const _ProfileHeader();

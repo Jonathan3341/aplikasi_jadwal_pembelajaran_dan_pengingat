@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:device_calendar_plus/device_calendar_plus.dart';
 
-import 'app_data.dart';
+import '../app_data.dart';
 
 class CalendarService {
   CalendarService._();

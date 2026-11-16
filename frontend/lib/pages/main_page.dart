@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_data.dart';
-import '../notification_service.dart';
+import '../services/notification_service.dart';
 
 import '../services/auth_service.dart';
 
@@ -10,6 +10,11 @@ import 'reminder_page.dart';
 import 'schedule_page.dart';
 import 'profile_page.dart';
 import 'admin_dashboard_page.dart';
+import 'teacher_dashboard_page.dart';
+import 'teacher_schedule_page.dart';
+import 'teacher_classes_page.dart';
+import 'teacher_assignments_page.dart';
+import 'student_assignments_page.dart';
 
 import '../widgets/app_bottom_nav.dart';
 
@@ -81,8 +86,10 @@ class _MainPageState extends State<MainPage> {
   void _navigateToTab(int index) {
     final pageCount = userRole == 'Admin'
         ? 2
+        : userRole == 'Guru'
+        ? 5
         : userRole == 'Murid'
-        ? 4
+        ? 5
         : 0;
 
     if (index < 0 || index >= pageCount) return;
@@ -100,21 +107,30 @@ class _MainPageState extends State<MainPage> {
       ];
     }
 
+    if (userRole == 'Guru') {
+      return [
+        TeacherDashboardPage(
+          profile: userProfile ?? {},
+          onNavigate: _navigateToTab,
+        ),
+        const TeacherSchedulePage(),
+        const TeacherClassesPage(),
+        const TeacherAssignmentsPage(),
+        const ProfilePage(),
+      ];
+    }
+
     if (userRole == 'Murid') {
       return [
         HomePage(onNavigate: _navigateToTab),
         const SchedulePage(),
+        const StudentAssignmentsPage(),
         const ReminderPage(),
         const ProfilePage(),
       ];
     }
 
-    return [
-      const Scaffold(
-        body: Center(child: Text('Dashboard Guru sedang dalam pengembangan.')),
-      ),
-      const ProfilePage(),
-    ];
+    return [];
   }
 
   @override
@@ -163,20 +179,6 @@ class _MainPageState extends State<MainPage> {
       );
     }
 
-    if (userRole == 'Guru') {
-      return const Scaffold(
-        body: Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Dashboard Guru sedang dalam pengembangan.',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      );
-    }
-
     final pages = _buildPages();
 
     return Scaffold(
@@ -185,6 +187,7 @@ class _MainPageState extends State<MainPage> {
         currentIndex: currentIndex,
         onTap: _navigateToTab,
         isAdmin: userRole == 'Admin',
+        isTeacher: userRole == 'Guru',
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'admin_unassigned_students_page.dart';
 import 'admin_classes_page.dart';
 import 'admin_schedule_page.dart';
+import 'admin_teachers_page.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   final Map<String, dynamic> profile;
@@ -131,7 +132,26 @@ class AdminDashboardPage extends StatelessWidget {
                   },
                 ),
               ),
+
               const SizedBox(height: 10),
+
+              _managementCard(
+                context,
+                icon: Icons.people_alt_outlined,
+                title: 'Manajemen Guru',
+                description: 'Lihat daftar Guru dan buat akun Guru baru.',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminTeachersPage(),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 10),
+
               _managementCard(
                 context,
                 icon: Icons.calendar_month_outlined,

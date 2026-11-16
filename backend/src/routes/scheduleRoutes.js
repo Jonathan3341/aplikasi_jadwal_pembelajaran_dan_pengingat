@@ -3,6 +3,7 @@ const express = require('express');
 
 const {
   getSchedules,
+  getClassStudents,
   createSchedule,
   updateSchedule,
   deleteSchedule,
@@ -20,6 +21,13 @@ router.use(authenticateToken);
 
 // Semua role yang login boleh melihat jadwal.
 router.get('/', getSchedules);
+
+// Hanya Guru yang dapat melihat anggota kelas yang ditugaskan.
+router.get(
+  '/classes/:classId/students',
+  authorizeRoles('Guru'),
+  getClassStudents
+);
 
 // Hanya Admin yang boleh mengelola jadwal.
 router.post('/', authorizeRoles('Admin'), createSchedule);

@@ -72,10 +72,20 @@ function findClass(classId) {
   `).get(classId);
 }
 
+// Memeriksa apakah akun Guru tersedia.
+function findTeacher(teacherId) {
+  return db.prepare(`
+    SELECT id, name, email, major
+    FROM users
+    WHERE id = ?
+      AND role = 'Guru'
+  `).get(teacherId);
+}
+
 // Mengambil jadwal.
 function getSchedules(req, res) {
   try {
-    let schedules;
+    let schedules = [];
 
     if (req.user.role === 'Admin') {
       // Admin dapat melihat seluruh jadwal.
@@ -85,53 +95,69 @@ function getSchedules(req, res) {
           ac.class_name,
           ac.major,
           ac.cohort_year,
-          creator.email AS created_by_email
+          creator.email AS created_by_email,
+          teacher.name AS teacher_name,
+          teacher.email AS teacher_email
         FROM schedules s
         LEFT JOIN academic_classes ac
           ON ac.id = s.class_id
         LEFT JOIN users creator
           ON creator.id = s.user_id
+        LEFT JOIN users teacher
+          ON teacher.id = s.teacher_id
         ORDER BY s.weekday ASC, s.start_time ASC
       `).all();
-    } else if (req.user.role === 'Murid') {
-      // Mahasiswa melihat jadwal kelasnya.
-      // Jadwal lama miliknya sendiri tetap ditampilkan.
+
+    } else if (req.user.role === 'Guru') {
+      // Guru hanya melihat jadwal yang ditugaskan kepadanya.
       schedules = db.prepare(`
         SELECT
           s.*,
           ac.class_name,
           ac.major,
-          ac.cohort_year
+          ac.cohort_year,
+          teacher.name AS teacher_name
         FROM schedules s
         LEFT JOIN academic_classes ac
           ON ac.id = s.class_id
-        WHERE
-          s.class_id = (
-            SELECT class_id
-            FROM users
-            WHERE id = ?
-          )
-          OR (
-            s.class_id IS NULL
-            AND s.user_id = ?
-          )
-        ORDER BY s.weekday ASC, s.start_time ASC
-      `).all(req.user.id, req.user.id);
-    } else {
-      // Untuk Guru, pertahankan akses jadwal miliknya
-      // seperti perilaku backend sebelumnya.
-      schedules = db.prepare(`
-        SELECT
-          s.*,
-          ac.class_name,
-          ac.major,
-          ac.cohort_year
-        FROM schedules s
-        LEFT JOIN academic_classes ac
-          ON ac.id = s.class_id
-        WHERE s.user_id = ?
+        LEFT JOIN users teacher
+          ON teacher.id = s.teacher_id
+        WHERE s.teacher_id = ?
         ORDER BY s.weekday ASC, s.start_time ASC
       `).all(req.user.id);
+
+    } else if (req.user.role === 'Murid') {
+      // Ambil kelas tempat Murid terdaftar.
+      const student = db.prepare(`
+        SELECT class_id
+        FROM users
+        WHERE id = ?
+          AND role = 'Murid'
+      `).get(req.user.id);
+
+      // Jika Murid belum memiliki kelas, tampilkan jadwal kosong.
+      if (student && student.class_id) {
+        schedules = db.prepare(`
+          SELECT
+            s.*,
+            ac.class_name,
+            ac.major,
+            ac.cohort_year,
+            teacher.name AS teacher_name
+          FROM schedules s
+          LEFT JOIN academic_classes ac
+            ON ac.id = s.class_id
+          LEFT JOIN users teacher
+            ON teacher.id = s.teacher_id
+          WHERE s.class_id = ?
+          ORDER BY s.weekday ASC, s.start_time ASC
+        `).all(student.class_id);
+      }
+
+    } else {
+      return res.status(403).json({
+        message: 'Anda tidak memiliki akses untuk melihat jadwal.',
+      });
     }
 
     return res.json({
@@ -139,6 +165,7 @@ function getSchedules(req, res) {
       total: schedules.length,
       data: schedules,
     });
+
   } catch (error) {
     console.error('Get schedules error:', error);
 
@@ -148,23 +175,25 @@ function getSchedules(req, res) {
   }
 }
 
+
 // Admin membuat jadwal untuk satu kelas.
 function createSchedule(req, res) {
   if (!ensureAdmin(req, res)) return;
 
   try {
-    const {
-      subject,
-      weekday,
-      start_time,
-      end_time,
-      room = '',
-      lecturer = '',
-      notes = '',
-      reminder_enabled = false,
-      reminder_minutes = 15,
-      class_id,
-    } = req.body;
+  const {
+    subject,
+    weekday,
+    start_time,
+    end_time,
+    room = '',
+    lecturer = '',
+    notes = '',
+    reminder_enabled = false,
+    reminder_minutes = 15,
+    class_id,
+    teacher_id,
+  } = req.body;
 
     const errorMessage = validateSchedule({
       subject,
@@ -200,68 +229,96 @@ function createSchedule(req, res) {
       });
     }
 
-    const targetClassId = Number(class_id);
+   // Validasi kelas.
+   const targetClassId = Number(class_id);
 
-    if (
-      class_id === undefined ||
-      !Number.isInteger(targetClassId) ||
-      targetClassId <= 0
-    ) {
-      return res.status(400).json({
-        message: 'class_id kelas akademik wajib diisi.',
-      });
-    }
+   if (
+     class_id === undefined ||
+     !Number.isInteger(targetClassId) ||
+     targetClassId <= 0
+   ) {
+     return res.status(400).json({
+       message: 'Kelas wajib dipilih.',
+     });
+   }
 
-    const targetClass = findClass(targetClassId);
+   const targetClass = findClass(targetClassId);
 
-    if (!targetClass) {
-      return res.status(404).json({
-        message: 'Kelas akademik tidak ditemukan.',
-      });
-    }
+   if (!targetClass) {
+     return res.status(404).json({
+       message: 'Kelas akademik tidak ditemukan.',
+     });
+   }
+
+   // Validasi Guru.
+   const targetTeacherId = Number(teacher_id);
+
+   if (
+     teacher_id === undefined ||
+     !Number.isInteger(targetTeacherId) ||
+     targetTeacherId <= 0
+   ) {
+     return res.status(400).json({
+       message: 'Guru pengajar wajib dipilih.',
+     });
+   }
+
+   const targetTeacher = findTeacher(targetTeacherId);
+
+   if (!targetTeacher) {
+     return res.status(404).json({
+       message: 'Akun Guru tidak ditemukan.',
+     });
+   }
 
     // user_id mencatat Admin yang membuat jadwal.
     // class_id menentukan mahasiswa yang menerima jadwal.
-    const result = db.prepare(`
-      INSERT INTO schedules (
-        user_id,
-        class_id,
-        subject,
-        weekday,
-        start_time,
-        end_time,
-        room,
-        lecturer,
-        notes,
-        reminder_enabled,
-        reminder_minutes
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      req.user.id,
-      targetClassId,
-      subject.trim(),
-      weekday,
-      start_time,
-      end_time,
-      room.trim(),
-      lecturer.trim(),
-      notes.trim(),
-      reminder_enabled ? 1 : 0,
-      reminder_minutes
-    );
+ const result = db.prepare(`
+   INSERT INTO schedules (
+     user_id,
+     class_id,
+     teacher_id,
+     subject,
+     weekday,
+     start_time,
+     end_time,
+     room,
+     lecturer,
+     notes,
+     reminder_enabled,
+     reminder_minutes
+   )
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ `).run(
+   req.user.id,
+   targetClassId,
+   targetTeacherId,
+   subject.trim(),
+   weekday,
+   start_time,
+   end_time,
+   room.trim(),
+   lecturer.trim(),
+   notes.trim(),
+   reminder_enabled ? 1 : 0,
+   reminder_minutes
+ );
 
-    const newSchedule = db.prepare(`
-      SELECT
-        s.*,
-        ac.class_name,
-        ac.major,
-        ac.cohort_year
-      FROM schedules s
-      LEFT JOIN academic_classes ac
-        ON ac.id = s.class_id
-      WHERE s.id = ?
-    `).get(result.lastInsertRowid);
+const newSchedule = db.prepare(`
+  SELECT
+    s.*,
+    ac.class_name,
+    ac.major,
+    ac.cohort_year,
+    teacher.name AS teacher_name,
+    teacher.email AS teacher_email
+  FROM schedules s
+  LEFT JOIN academic_classes ac
+    ON ac.id = s.class_id
+  LEFT JOIN users teacher
+    ON teacher.id = s.teacher_id
+  WHERE s.id = ?
+`).get(result.lastInsertRowid);
 
     return res.status(201).json({
       message: 'Jadwal kelas berhasil ditambahkan.',
@@ -312,6 +369,7 @@ function updateSchedule(req, res) {
       reminder_enabled = false,
       reminder_minutes = 15,
       class_id,
+      teacher_id,
     } = req.body;
 
     const errorMessage = validateSchedule({
@@ -374,10 +432,38 @@ function updateSchedule(req, res) {
       });
     }
 
+const targetTeacherId = teacher_id === undefined
+  ? existing.teacher_id
+  : teacher_id === null
+    ? null
+    : Number(teacher_id);
+
+if (
+  targetTeacherId !== null &&
+  (
+    !Number.isInteger(targetTeacherId) ||
+    targetTeacherId <= 0
+  )
+) {
+  return res.status(400).json({
+    message: 'teacher_id tidak valid.',
+  });
+}
+
+if (
+  targetTeacherId !== null &&
+  !findTeacher(targetTeacherId)
+) {
+  return res.status(404).json({
+    message: 'Akun Guru tidak ditemukan.',
+  });
+}
+
     db.prepare(`
       UPDATE schedules
       SET
         class_id = ?,
+        teacher_id = ?,
         subject = ?,
         weekday = ?,
         start_time = ?,
@@ -391,6 +477,7 @@ function updateSchedule(req, res) {
       WHERE id = ?
     `).run(
       targetClassId,
+      targetTeacherId,
       subject.trim(),
       weekday,
       start_time,
@@ -403,17 +490,21 @@ function updateSchedule(req, res) {
       scheduleId
     );
 
-    const updatedSchedule = db.prepare(`
-      SELECT
-        s.*,
-        ac.class_name,
-        ac.major,
-        ac.cohort_year
-      FROM schedules s
-      LEFT JOIN academic_classes ac
-        ON ac.id = s.class_id
-      WHERE s.id = ?
-    `).get(scheduleId);
+  const updatedSchedule = db.prepare(`
+    SELECT
+      s.*,
+      ac.class_name,
+      ac.major,
+      ac.cohort_year,
+      teacher.name AS teacher_name,
+      teacher.email AS teacher_email
+    FROM schedules s
+    LEFT JOIN academic_classes ac
+      ON ac.id = s.class_id
+    LEFT JOIN users teacher
+      ON teacher.id = s.teacher_id
+    WHERE s.id = ?
+  `).get(scheduleId);
 
     return res.json({
       message: 'Jadwal berhasil diperbarui.',
@@ -470,8 +561,58 @@ function deleteSchedule(req, res) {
   }
 }
 
+// Guru mengambil daftar murid dari kelas yang ditugaskan kepadanya.
+function getClassStudents(req, res) {
+  try {
+    const classId = Number(req.params.classId);
+
+    if (!Number.isInteger(classId) || classId <= 0) {
+      return res.status(400).json({
+        message: 'ID kelas tidak valid.',
+      });
+    }
+
+    // Pastikan Guru memang ditugaskan mengajar kelas ini.
+    const assignedClass = db.prepare(`
+      SELECT id
+      FROM schedules
+      WHERE teacher_id = ?
+        AND class_id = ?
+      LIMIT 1
+    `).get(req.user.id, classId);
+
+    if (!assignedClass) {
+      return res.status(403).json({
+        message: 'Anda tidak memiliki akses ke kelas ini.',
+      });
+    }
+
+    // Ambil anggota kelas dengan role Murid.
+    const students = db.prepare(`
+      SELECT id, name, nim, major
+      FROM users
+      WHERE class_id = ?
+        AND role = 'Murid'
+      ORDER BY name ASC
+    `).all(classId);
+
+    return res.json({
+      message: 'Daftar murid berhasil diambil.',
+      total: students.length,
+      data: students,
+    });
+  } catch (error) {
+    console.error('Get class students error:', error);
+
+    return res.status(500).json({
+      message: 'Gagal mengambil daftar murid.',
+    });
+  }
+}
+
 module.exports = {
   getSchedules,
+  getClassStudents,
   createSchedule,
   updateSchedule,
   deleteSchedule,
