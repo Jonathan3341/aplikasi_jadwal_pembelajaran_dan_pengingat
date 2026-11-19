@@ -1,6 +1,7 @@
 const express = require('express');
 
 const {
+  getRegistrationClasses,
   register,
   login,
   refresh,
@@ -14,6 +15,10 @@ const {
 } = require('../middleware/authMiddleware');
 
 const router = express.Router();
+
+// Mengambil daftar kelas untuk registrasi Murid.
+// Endpoint ini tidak membutuhkan login.
+router.get('/registration-classes', getRegistrationClasses);
 
 router.post('/register', register);
 router.post('/login', login);
@@ -31,7 +36,7 @@ router.post(
   logout
 );
 
-// Contoh endpoint khusus role.
+// Endpoint khusus role Admin.
 router.get(
   '/admin',
   authenticateToken,
@@ -43,6 +48,7 @@ router.get(
   }
 );
 
+// Endpoint khusus Guru dan Admin.
 router.get(
   '/teacher',
   authenticateToken,

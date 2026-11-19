@@ -4,7 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
-const userRoutes = require('./routes/userRoutes');
+const authRoutes = require('./routes/authRoutes');
 const scheduleRoutes = require('./routes/scheduleRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const assignmentRoutes = require('./routes/assignmentRoutes');
@@ -36,7 +36,7 @@ app.get('/', (req, res) => {
 });
 
 // Route Authentication.
-app.use('/api/user', userRoutes);
+app.use('/api/user', authRoutes);
 
 // Route CRUD Jadwal Pembelajaran.
 app.use('/api/schedules', scheduleRoutes);
@@ -73,8 +73,10 @@ app.use((error, req, res, next) => {
 // Membersihkan refresh token kedaluwarsa.
 cleanupExpiredTokens();
 
-const server = app.listen(PORT, () => {
-  console.log(`Backend berjalan di http://localhost:${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Backend berjalan pada port ${PORT}`);
+  console.log(`Akses lokal: http://localhost:${PORT}`);
+  console.log(`Akses HP: http://192.168.1.12:${PORT}`);
 });
 
 // Menutup koneksi database ketika server dihentikan.

@@ -281,20 +281,18 @@ function getStudents(req, res) {
 
     const params = [];
 
-    if (class_id === 'unassigned') {
-      sql += ' AND u.class_id IS NULL';
-    } else if (class_id !== undefined) {
-      const classId = Number(class_id);
+if (class_id !== undefined) {
+  const classId = Number(class_id);
 
-      if (!Number.isInteger(classId) || classId <= 0) {
-        return res.status(400).json({
-          message: 'Filter ID kelas tidak valid.',
-        });
-      }
+  if (!Number.isInteger(classId) || classId <= 0) {
+    return res.status(400).json({
+      message: 'Filter ID kelas tidak valid.',
+    });
+  }
 
-      sql += ' AND u.class_id = ?';
-      params.push(classId);
-    }
+  sql += ' AND u.class_id = ?';
+  params.push(classId);
+}
 
     if (typeof search === 'string' && search.trim()) {
       sql += `
@@ -359,105 +357,6 @@ function getTeachers(req, res) {
     });
   }
 }
-
-// Menempatkan mahasiswa ke kelas berdasarkan NIM.
-// class_id boleh null untuk mengeluarkan mahasiswa dari kelas.
-function assignStudentToClass(req, res) {
-  try {
-    const { nim, class_id } = req.body;
-
-    if (
-      typeof nim !== 'string' ||
-      !nim.trim() ||
-      !Object.prototype.hasOwnProperty.call(req.body, 'class_id')
-    ) {
-      return res.status(400).json({
-        message: 'NIM dan class_id wajib diberikan.',
-      });
-    }
-
-    const student = db.prepare(`
-      SELECT id, name, nim, major, role
-      FROM users
-      WHERE nim = ?
-    `).get(nim.trim());
-
-    if (!student || student.role !== 'Murid') {
-      return res.status(404).json({
-        message: 'Mahasiswa dengan NIM tersebut tidak ditemukan.',
-      });
-    }
-
-    let targetClassId = null;
-
-    if (class_id !== null) {
-      targetClassId = Number(class_id);
-
-      if (!Number.isInteger(targetClassId) || targetClassId <= 0) {
-        return res.status(400).json({
-          message: 'class_id tidak valid.',
-        });
-      }
-
-      const targetClass = db.prepare(`
-        SELECT id, class_name, major
-        FROM academic_classes
-        WHERE id = ?
-      `).get(targetClassId);
-
-      if (!targetClass) {
-        return res.status(404).json({
-          message: 'Kelas akademik tidak ditemukan.',
-        });
-      }
-
-      if (
-        student.major.trim().toLowerCase() !==
-        targetClass.major.trim().toLowerCase()
-      ) {
-        return res.status(400).json({
-          message:
-            'Jurusan mahasiswa tidak sesuai dengan jurusan kelas.',
-        });
-      }
-    }
-
-    db.prepare(`
-      UPDATE users
-      SET class_id = ?
-      WHERE id = ? AND role = 'Murid'
-    `).run(targetClassId, student.id);
-
-    const updatedStudent = db.prepare(`
-      SELECT
-        u.id,
-        u.name,
-        u.email,
-        u.nim,
-        u.major,
-        u.class_id,
-        ac.class_name
-      FROM users u
-      LEFT JOIN academic_classes ac
-        ON ac.id = u.class_id
-      WHERE u.id = ?
-    `).get(student.id);
-
-    return res.json({
-      message: targetClassId === null
-        ? 'Mahasiswa berhasil dikeluarkan dari kelas.'
-        : 'Mahasiswa berhasil dimasukkan ke kelas.',
-      data: updatedStudent,
-    });
-  } catch (error) {
-    console.error('Assign student error:', error);
-
-    return res.status(500).json({
-      message: 'Gagal mengatur kelas mahasiswa.',
-    });
-  }
-}
-
 
 async function createTeacher(req, res) {
   try {
@@ -565,6 +464,67 @@ async function createTeacher(req, res) {
   }
 }
 
+// Menghapus akun Guru.
+function deleteTeacher(req, res) {
+  try {
+    const teacherId = Number(req.params.id);
+
+    if (!Number.isInteger(teacherId) || teacherId <= 0) {
+      return res.status(400).json({
+        message: 'ID Guru tidak valid.',
+      });
+    }
+
+    // Memastikan akun yang akan dihapus benar-benar Guru.
+    const teacher = db.prepare(`
+      SELECT id, name, email
+      FROM users
+      WHERE id = ? AND role = 'Guru'
+    `).get(teacherId);
+
+    if (!teacher) {
+      return res.status(404).json({
+        message: 'Akun Guru tidak ditemukan.',
+      });
+    }
+
+    // Memeriksa apakah Guru masih memiliki tugas.
+    const assignmentUsage = db.prepare(`
+      SELECT COUNT(*) AS total
+      FROM assignments
+      WHERE teacher_id = ?
+    `).get(teacherId);
+
+    if (assignmentUsage.total > 0) {
+      return res.status(409).json({
+        message:
+          `Akun Guru tidak dapat dihapus karena masih memiliki ` +
+          `${assignmentUsage.total} tugas. ` +
+          'Pastikan tugas tersebut sudah ditangani terlebih dahulu.',
+        data: {
+          assignment_count: assignmentUsage.total,
+        },
+      });
+    }
+
+    // Menghapus akun Guru.
+    db.prepare(`
+      DELETE FROM users
+      WHERE id = ? AND role = 'Guru'
+    `).run(teacherId);
+
+    return res.json({
+      message: 'Akun Guru berhasil dihapus.',
+    });
+  } catch (error) {
+    console.error('Delete teacher error:', error);
+
+    return res.status(500).json({
+      message: 'Gagal menghapus akun Guru.',
+    });
+  }
+}
+
 module.exports = {
   getClasses,
   createClass,
@@ -573,5 +533,5 @@ module.exports = {
   getStudents,
   getTeachers,
   createTeacher,
-  assignStudentToClass,
+  deleteTeacher,
 };

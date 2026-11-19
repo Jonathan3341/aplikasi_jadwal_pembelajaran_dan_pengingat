@@ -5,6 +5,7 @@ const {
   getAvailableAttendance,
   submitAttendance,
   getMyAttendance,
+  getMyAttendanceSummary,
 } = require('../controllers/attendanceController');
 
 const {
@@ -26,5 +27,7 @@ router.post('/', submitAttendance);
 
 // Melihat riwayat absensi sendiri.
 router.get('/my-history', getMyAttendance);
+
+router.get('/summary', getMyAttendanceSummary);
 
 module.exports = router;

@@ -9,7 +9,7 @@ const {
   getStudents,
   getTeachers,
   createTeacher,
-  assignStudentToClass,
+  deleteTeacher,
 } = require('../controllers/adminController');
 
 const {
@@ -33,10 +33,10 @@ router.delete('/classes/:id', deleteClass);
 
 // Pengelolaan mahasiswa.
 router.get('/students', getStudents);
-router.put('/students/class', assignStudentToClass);
 
-//Pengeloaan guru
+// Pengelolaan Guru.
 router.get('/teachers', getTeachers);
 router.post('/teachers', createTeacher);
+router.delete('/teachers/:id', deleteTeacher);
 
 module.exports = router;

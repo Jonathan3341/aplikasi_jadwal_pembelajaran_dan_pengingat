@@ -7,6 +7,7 @@ const {
   getAssignments,
   getAssignmentById,
   downloadAssignmentAttachment,
+  updateAssignment,
 } = require('../controllers/assignmentController');
 
 const {
@@ -48,6 +49,13 @@ router.get(
   '/attachments/:id/download',
   authorizeRoles('Guru', 'Murid'),
   downloadAssignmentAttachment
+);
+
+// Guru mengedit tugas miliknya sendiri.
+router.put(
+  '/:id',
+  authorizeRoles('Guru'),
+  updateAssignment
 );
 
 module.exports = router;

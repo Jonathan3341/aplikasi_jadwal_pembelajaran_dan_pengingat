@@ -1,12 +1,12 @@
 require('dotenv').config();
 const bcrypt = require('bcrypt');
-const db = require('./database');
+const db = require('./src/config/database');
 
 async function createAdmin() {
   try {
-    const name = process.env.ADMIN_NAME;
-    const email = process.env.ADMIN_EMAIL;
-    const password = process.env.ADMIN_PASSWORD;
+    const name = 'admin1';
+    const email = 'admin1@kampus.ac.id';
+    const password = 'admin12345' ;
 
     if (!name || !email || !password) {
       throw new Error(

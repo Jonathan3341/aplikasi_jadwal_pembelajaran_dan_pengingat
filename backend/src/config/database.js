@@ -1,3 +1,4 @@
+
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
@@ -15,7 +16,10 @@ const db = new Database(databasePath);
 db.pragma('foreign_keys = ON');
 db.pragma('journal_mode = WAL');
 
-// Tabel users
+// ==========================================
+// TABEL USERS
+// ==========================================
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,7 +66,10 @@ db.exec(`
   WHERE nim IS NOT NULL AND nim <> '';
 `);
 
-// Tabel kelas akademik.
+// ==========================================
+// TABEL KELAS AKADEMIK
+// ==========================================
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS academic_classes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,13 +99,17 @@ if (!hasUserClassId) {
   `);
 }
 
-// Index untuk pencarian mahasiswa berdasarkan kelas.
+// Index pencarian mahasiswa berdasarkan kelas.
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_users_class_id
   ON users(class_id);
 `);
 
-// Tabel refresh_tokens
+
+// ==========================================
+// TABEL REFRESH TOKENS
+// ==========================================
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS refresh_tokens (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,6 +117,7 @@ db.exec(`
     token_hash TEXT NOT NULL UNIQUE,
     expires_at INTEGER NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
     FOREIGN KEY (user_id)
       REFERENCES users(id)
       ON DELETE CASCADE
@@ -117,8 +129,10 @@ db.exec(`
   ON refresh_tokens(user_id);
 `);
 
+// ==========================================
+// TABEL JADWAL PEMBELAJARAN
+// ==========================================
 
-// Tabel schedules
 db.exec(`
   CREATE TABLE IF NOT EXISTS schedules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -162,7 +176,7 @@ db.exec(`
   );
 `);
 
-// Periksa ulang kolom setelah tabel dibuat.
+// Periksa ulang kolom tabel schedules.
 let scheduleColumns = db.prepare(
   'PRAGMA table_info(schedules)'
 ).all();
@@ -214,9 +228,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_schedules_weekday
   ON schedules(weekday);
 `);
-
-
-console.log('SQLite database berhasil diinisialisasi.');
 
 // ==========================================
 // TABEL SISTEM TUGAS GURU DAN MURID
@@ -366,7 +377,6 @@ db.exec(`
   ON submission_attachments(submission_id);
 `);
 
-
 // ==========================================
 // TABEL SISTEM ABSENSI MAHASISWA
 // ==========================================
@@ -416,8 +426,17 @@ db.exec(`
   ON attendance_records(attendance_date);
 `);
 
-console.log('Tabel sistem absensi berhasil diperiksa.');
+db.exec(`
+  DROP TABLE IF EXISTS academic_semesters;
+`);
+// ==========================================
+// INFORMASI DATABASE
+// ==========================================
+
+console.log('SQLite database berhasil diinisialisasi.');
+console.log('Tabel manajemen semester berhasil diperiksa.');
 console.log('Tabel sistem tugas berhasil diperiksa.');
+console.log('Tabel sistem absensi berhasil diperiksa.');
 console.log('Database location:', databasePath);
 
 module.exports = db;

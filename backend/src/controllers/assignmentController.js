@@ -396,9 +396,86 @@ function downloadAssignmentAttachment(req, res, next) {
   }
 }
 
+ // Mengubah judul dan instruksi tugas oleh Guru.
+ function updateAssignment(req, res, next) {
+   try {
+     const assignmentId = Number(req.params.id);
+     const { title, description } = req.body;
+
+     if (!Number.isInteger(assignmentId) || assignmentId <= 0) {
+       return res.status(400).json({
+         message: 'ID tugas tidak valid.',
+       });
+     }
+
+     if (typeof title !== 'string' || !title.trim()) {
+       return res.status(400).json({
+         message: 'Judul tugas wajib diisi.',
+       });
+     }
+
+     if (typeof description !== 'string') {
+       return res.status(400).json({
+         message: 'Instruksi tugas tidak valid.',
+       });
+     }
+
+     const assignment = db.prepare(`
+       SELECT id, teacher_id
+       FROM assignments
+       WHERE id = ?
+     `).get(assignmentId);
+
+     if (!assignment) {
+       return res.status(404).json({
+         message: 'Tugas tidak ditemukan.',
+       });
+     }
+
+     // Guru hanya boleh mengedit tugas miliknya sendiri.
+     if (Number(assignment.teacher_id) !== Number(req.user.id)) {
+       return res.status(403).json({
+         message: 'Anda tidak memiliki izin mengedit tugas ini.',
+       });
+     }
+
+     db.prepare(`
+       UPDATE assignments
+       SET
+         title = ?,
+         description = ?,
+         updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?
+     `).run(
+       title.trim(),
+       description.trim(),
+       assignmentId
+     );
+
+     const updatedAssignment = db.prepare(`
+       SELECT
+         a.*,
+         c.class_name,
+         c.major,
+         c.cohort_year
+       FROM assignments a
+       JOIN academic_classes c ON c.id = a.class_id
+       WHERE a.id = ?
+     `).get(assignmentId);
+
+     return res.json({
+       message: 'Tugas berhasil diperbarui.',
+       data: updatedAssignment,
+     });
+   } catch (error) {
+     next(error);
+   }
+ }
+
 module.exports = {
   createAssignment,
   getAssignments,
   getAssignmentById,
   downloadAssignmentAttachment,
+  updateAssignment,
 };

@@ -11,6 +11,7 @@ const rl = readline.createInterface({
   output: stdout,
 });
 
+//MENAMPILKAN SELURUH USER
 async function showUsers() {
   const users = db.prepare(`
     SELECT id, name, email, nim, major, role
@@ -22,6 +23,7 @@ async function showUsers() {
   console.table(users);
 }
 
+//MENAMPILKAN SELURUH SCHEDULES
 async function showSchedules() {
   const schedules = db.prepare(`
     SELECT
@@ -42,9 +44,39 @@ async function showSchedules() {
   console.table(schedules);
 }
 
-// ======================================
+// MENAMPILKAN SELURUH KELAS
+async function showClass() {
+ const academic_classes = db.prepare (`
+    SELECT * FROM academic_classes;
+ `).all();
+
+ console.log('\n========== DATA KELAS ==========');
+   console.table(academic_classes);
+}
+
+//MENAMPILKAN SELURUH ASSIGNMENTS
+async function showAssignments(){
+const assignments = db.prepare (`
+SELECT * FROM assignments;
+`).all();
+       console.table(assignments);
+}
+
+
+// CEK SELURUH TABEL DATABASE
+async function showDatabase(){
+const tables = db.prepare(`
+    SELECT name
+    FROM sqlite_master
+    WHERE type = 'table'
+`).all();
+
+console.log('Daftar tabel database:');
+console.log(tables);
+}
+
+
 // HAPUS SATU USER
-// ======================================
 
 async function deleteOneUser() {
   await showUsers();
@@ -195,9 +227,12 @@ async function main() {
   console.log('================================');
   console.log('1. Lihat seluruh user');
   console.log('2. Lihat seluruh jadwal');
-  console.log('3. Hapus satu user');
-  console.log('4. Hapus satu jadwal');
-  console.log('5. Hapus seluruh data database');
+  console.log('3. Lihat seluruh kelas');
+  console.log('4. Lihat seluruh tugas');
+  console.log('5. Lihat seluruh database');
+  console.log('6. Hapus satu user');
+  console.log('7. Hapus satu jadwal');
+  console.log('8. Hapus seluruh data database');
   console.log('0. Keluar');
 
   const choice = await rl.question('\nPilih menu: ');
@@ -212,14 +247,26 @@ async function main() {
       break;
 
     case '3':
-      await deleteOneUser();
+      await showClass();
       break;
 
     case '4':
-      await deleteOneSchedule();
+      await showAssignments();
       break;
 
     case '5':
+        await showDatabase();
+        break;
+
+    case '6':
+      await deleteOneUser();
+      break;
+
+    case '7':
+      await deleteOneSchedule();
+      break;
+
+    case '8':
       await deleteAllData();
       break;
 
@@ -241,17 +288,3 @@ main()
     db.close();
   });
 
-console.log('\n=== TABEL ACADEMIC_CLASSES ===');
-console.log(
-  db.prepare('PRAGMA table_info(academic_classes)').all()
-);
-
-console.log('\n=== KOLOM TABEL USERS ===');
-console.log(
-  db.prepare('PRAGMA table_info(users)').all()
-);
-
-console.log('\n=== KOLOM TABEL SCHEDULES ===');
-console.log(
-  db.prepare('PRAGMA table_info(schedules)').all()
-);

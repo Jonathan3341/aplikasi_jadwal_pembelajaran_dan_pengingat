@@ -351,8 +351,151 @@ function getMyAttendance(req, res) {
   });
 }
 
+
+
+
+// Mengambil rekap keseluruhan absensi Murid.
+function getMyAttendanceSummary(req, res) {
+  try {
+    const student = db.prepare(`
+      SELECT id, class_id, role
+      FROM users
+      WHERE id = ?
+    `).get(req.user.id);
+
+    if (!student || student.role !== 'Murid') {
+      return res.status(404).json({
+        message: 'Data Murid tidak ditemukan.',
+      });
+    }
+
+    if (!student.class_id) {
+      return res.status(400).json({
+        message: 'Murid belum ditempatkan ke kelas akademik.',
+      });
+    }
+
+    const now = getJakartaTime();
+    const currentDate = now.date;
+    const currentMinutes = getCurrentMinutes(now);
+
+    // Mengambil jadwal kelas beserta tanggal pembuatannya.
+    const schedules = db.prepare(`
+      SELECT
+        id,
+        weekday,
+        start_time,
+        end_time,
+        created_at,
+        date(created_at, '+7 hours') AS start_date,
+        time(created_at, '+7 hours') AS created_time
+      FROM schedules
+      WHERE class_id = ?
+    `).all(student.class_id);
+
+    // Mengambil seluruh riwayat absensi Murid.
+    const attendanceRecords = db.prepare(`
+      SELECT
+        ar.schedule_id,
+        ar.attendance_date
+      FROM attendance_records ar
+      INNER JOIN schedules s
+        ON s.id = ar.schedule_id
+      WHERE
+        ar.student_id = ?
+        AND s.class_id = ?
+    `).all(student.id, student.class_id);
+
+    const attendanceSet = new Set(
+      attendanceRecords.map(
+        (item) => `${item.schedule_id}_${item.attendance_date}`
+      )
+    );
+
+    let presentCount = 0;
+    let absentCount = 0;
+
+    for (const schedule of schedules) {
+      if (!schedule.start_date) continue;
+
+      if (schedule.start_date > currentDate) continue;
+
+      const startDate = new Date(
+        `${schedule.start_date}T00:00:00.000Z`
+      );
+
+      const endDate = new Date(
+        `${currentDate}T00:00:00.000Z`
+      );
+
+      for (
+        let date = new Date(startDate);
+        date <= endDate;
+        date.setUTCDate(date.getUTCDate() + 1)
+      ) {
+        const weekday = date.getUTCDay() || 7;
+
+        if (weekday !== schedule.weekday) {
+          continue;
+        }
+
+        const attendanceDate = date.toISOString().slice(0, 10);
+
+        // Jadwal tidak dihitung sebelum tanggal dibuat.
+        if (attendanceDate === schedule.start_date) {
+          const createdMinutes = toMinutes(schedule.created_time);
+
+          if (createdMinutes > toMinutes(schedule.start_time)) {
+            continue;
+          }
+        }
+
+        const attendanceKey =
+          `${schedule.id}_${attendanceDate}`;
+
+        const hasAttendance = attendanceSet.has(attendanceKey);
+
+        // Jika sudah melakukan absensi, langsung hitung sebagai Hadir.
+        if (hasAttendance) {
+          presentCount++;
+          continue;
+        }
+
+        // Jika belum absen, pertemuan hari ini belum dihitung
+        // sampai waktu jadwal selesai.
+        if (attendanceDate === currentDate) {
+          if (currentMinutes < toMinutes(schedule.end_time)) {
+            continue;
+          }
+        }
+
+        // Pertemuan selesai tanpa absensi dihitung Tidak Hadir.
+        absentCount++;
+      }
+    }
+
+    const totalMeetings = presentCount + absentCount;
+
+    return res.json({
+      message: 'Rekap absensi berhasil diambil.',
+      data: {
+        total_meetings: totalMeetings,
+        present_count: presentCount,
+        absent_count: absentCount,
+      },
+    });
+  } catch (error) {
+    console.error('Get attendance summary error:', error);
+
+    return res.status(500).json({
+      message: 'Gagal mengambil rekap absensi.',
+    });
+  }
+}
+
 module.exports = {
   getAvailableAttendance,
   submitAttendance,
   getMyAttendance,
+  getMyAttendanceSummary,
 };

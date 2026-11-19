@@ -1,3 +1,4 @@
+
 const bcrypt = require('bcrypt');
 const db = require('../config/database');
 
@@ -31,15 +32,49 @@ const findUserByNim = db.prepare(
   'SELECT id FROM users WHERE nim = ?'
 );
 
+// Mengambil profil beserta informasi kelas.
 const findProfileById = db.prepare(`
-  SELECT id, name, email, nim, major, role
-  FROM users
+  SELECT
+    u.id,
+    u.name,
+    u.email,
+    u.nim,
+    u.major,
+    u.role,
+    u.class_id,
+    ac.class_name,
+    ac.cohort_year
+  FROM users u
+  LEFT JOIN academic_classes ac ON ac.id = u.class_id
+  WHERE u.id = ?
+`);
+
+// Mengambil daftar kelas untuk halaman registrasi.
+const findRegistrationClasses = db.prepare(`
+  SELECT id, class_name, major, cohort_year
+  FROM academic_classes
+  ORDER BY cohort_year DESC, class_name ASC
+`);
+
+// Memastikan kelas yang dipilih benar-benar tersedia.
+const findClassById = db.prepare(`
+  SELECT id, class_name, major, cohort_year
+  FROM academic_classes
   WHERE id = ?
 `);
 
+// Menyimpan akun Murid beserta kelas yang dipilih.
 const insertUser = db.prepare(`
-  INSERT INTO users (name, email, password, nim, major, role)
-  VALUES (?, ?, ?, ?, ?, 'Murid')
+  INSERT INTO users (
+    name,
+    email,
+    password,
+    nim,
+    major,
+    class_id,
+    role
+  )
+  VALUES (?, ?, ?, ?, ?, ?, 'Murid')
 `);
 
 const insertRefreshToken = db.prepare(`
@@ -85,11 +120,30 @@ function saveRefreshToken(user, token) {
   );
 }
 
+// GET /api/user/registration-classes
+// Endpoint publik untuk mengambil daftar kelas saat registrasi.
+function getRegistrationClasses(req, res) {
+  try {
+    const classes = findRegistrationClasses.all();
+
+    return res.status(200).json({
+      message: 'Daftar kelas berhasil diambil.',
+      total: classes.length,
+      data: classes,
+    });
+  } catch (error) {
+    console.error('Get registration classes error:', error);
+
+    return res.status(500).json({
+      message: 'Gagal mengambil daftar kelas.',
+    });
+  }
+}
 
 // POST /api/user/register
 async function register(req, res) {
   try {
-    const { name, email, password, nim, major } = req.body;
+    const { name, email, password, nim, class_id } = req.body;
 
     // Validasi data wajib.
     if (
@@ -97,27 +151,33 @@ async function register(req, res) {
       typeof email !== 'string' ||
       typeof password !== 'string' ||
       typeof nim !== 'string' ||
-      typeof major !== 'string' ||
       !name.trim() ||
       !email.trim() ||
       !password ||
       !nim.trim() ||
-      !major.trim()
+      class_id === undefined ||
+      class_id === null
     ) {
       return res.status(400).json({
-        message: 'Nama, email, password, NIM, dan jurusan wajib diisi.',
+        message: 'Nama, email, password, NIM, dan kelas wajib diisi.',
+      });
+    }
+
+    const classId = Number(class_id);
+
+    if (!Number.isInteger(classId) || classId <= 0) {
+      return res.status(400).json({
+        message: 'Kelas yang dipilih tidak valid.',
       });
     }
 
     const normalizedName = name.trim();
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedNim = nim.trim();
-    const normalizedMajor = major.trim();
 
     if (
       normalizedName.length > 100 ||
-      normalizedNim.length > 50 ||
-      normalizedMajor.length > 100
+      normalizedNim.length > 50
     ) {
       return res.status(400).json({
         message: 'Data profil terlalu panjang.',
@@ -142,6 +202,18 @@ async function register(req, res) {
       });
     }
 
+    // Pastikan kelas yang dipilih tersedia.
+    const selectedClass = findClassById.get(classId);
+
+    if (!selectedClass) {
+      return res.status(404).json({
+        message: 'Kelas yang dipilih tidak ditemukan.',
+      });
+    }
+
+    // Jurusan diambil dari data kelas, bukan dari input pengguna.
+    const normalizedMajor = selectedClass.major.trim();
+
     if (findUserByEmail.get(normalizedEmail)) {
       return res.status(409).json({
         message: 'Email sudah terdaftar.',
@@ -161,16 +233,23 @@ async function register(req, res) {
       normalizedEmail,
       passwordHash,
       normalizedNim,
-      normalizedMajor
+      normalizedMajor,
+      classId
     );
 
     return res.status(201).json({
-      id: String(result.lastInsertRowid),
-      name: normalizedName,
-      email: normalizedEmail,
-      nim: normalizedNim,
-      major: normalizedMajor,
-      role: 'Murid',
+      message: 'Registrasi berhasil.',
+      data: {
+        id: String(result.lastInsertRowid),
+        name: normalizedName,
+        email: normalizedEmail,
+        nim: normalizedNim,
+        major: normalizedMajor,
+        class_id: classId,
+        class_name: selectedClass.class_name,
+        cohort_year: selectedClass.cohort_year,
+        role: 'Murid',
+      },
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -186,7 +265,6 @@ async function register(req, res) {
     });
   }
 }
-
 
 // POST /api/user/login
 async function login(req, res) {
@@ -229,7 +307,6 @@ async function login(req, res) {
     const refreshToken = createRefreshToken(user);
 
     saveRefreshToken(user, refreshToken);
-
     setRefreshCookie(res, refreshToken);
 
     return res.status(200).json({
@@ -331,6 +408,9 @@ function profile(req, res) {
     nim: user.nim,
     major: user.major,
     role: user.role,
+    class_id: user.class_id,
+    class_name: user.class_name,
+    cohort_year: user.cohort_year,
   });
 }
 
@@ -354,6 +434,7 @@ function cleanupExpiredTokens() {
 }
 
 module.exports = {
+  getRegistrationClasses,
   register,
   login,
   refresh,
