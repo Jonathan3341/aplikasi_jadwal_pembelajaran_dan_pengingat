@@ -1,13 +1,12 @@
+
 import 'package:flutter/material.dart';
 
 import '../app_data.dart';
 import '../services/notification_service.dart';
-
 import '../services/auth_service.dart';
 
-import 'home_page.dart';
-import 'reminder_page.dart';
-import 'schedule_page.dart';
+import 'student_dashboard_page.dart';
+import 'student_schedule_page.dart';
 import 'profile_page.dart';
 import 'admin_dashboard_page.dart';
 import 'teacher_dashboard_page.dart';
@@ -89,7 +88,7 @@ class _MainPageState extends State<MainPage> {
         : userRole == 'Guru'
         ? 5
         : userRole == 'Murid'
-        ? 5
+        ? 4
         : 0;
 
     if (index < 0 || index >= pageCount) return;
@@ -122,10 +121,9 @@ class _MainPageState extends State<MainPage> {
 
     if (userRole == 'Murid') {
       return [
-        HomePage(onNavigate: _navigateToTab),
-        const SchedulePage(),
+        StudentDashboardPage(onNavigate: _navigateToTab),
+        const StudentSchedulePage(),
         const StudentAssignmentsPage(),
-        const ReminderPage(),
         const ProfilePage(),
       ];
     }
@@ -138,7 +136,9 @@ class _MainPageState extends State<MainPage> {
     if (isLoading) {
       return const Scaffold(
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFFFF7A00)),
+          child: CircularProgressIndicator(
+            color: Color(0xFFFF7A00),
+          ),
         ),
       );
     }
@@ -151,7 +151,11 @@ class _MainPageState extends State<MainPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cloud_off, size: 48, color: Colors.grey),
+                const Icon(
+                  Icons.cloud_off,
+                  size: 48,
+                  color: Colors.grey,
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   'Gagal memuat profil pengguna.',
@@ -159,7 +163,10 @@ class _MainPageState extends State<MainPage> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                Text(loadError!, textAlign: TextAlign.center),
+                Text(
+                  loadError!,
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
                   onPressed: () {

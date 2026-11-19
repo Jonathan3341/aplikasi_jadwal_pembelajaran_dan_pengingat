@@ -46,6 +46,71 @@ class _AdminTeachersPageState extends State<AdminTeachersPage> {
     }
   }
 
+  Future<void> _confirmDeleteTeacher(
+      Map<String, dynamic> teacher,
+      ) async {
+    final teacherId = int.tryParse(
+      teacher['id']?.toString() ?? '',
+    );
+
+    if (teacherId == null) {
+      _showMessage('ID Guru tidak valid.');
+      return;
+    }
+
+    final teacherName =
+        teacher['name']?.toString() ?? 'Guru';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus Akun Guru?'),
+        content: Text(
+          'Apakah kamu yakin ingin menghapus akun $teacherName? '
+              'Guru yang masih memiliki tugas tidak dapat dihapus.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext, false);
+            },
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext, true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ApiService.instance.deleteTeacher(teacherId);
+
+      if (!mounted) return;
+
+      setState(() {
+        teachers.removeWhere(
+              (item) => item['id'].toString() == teacherId.toString(),
+        );
+      });
+
+      _showMessage('Akun Guru berhasil dihapus.');
+    } catch (e) {
+      if (!mounted) return;
+
+      _showMessage(_readError(e));
+    }
+  }
+
   String _readError(Object error) {
     final dynamic responseData = (error as dynamic).response?.data;
 
@@ -56,6 +121,15 @@ class _AdminTeachersPageState extends State<AdminTeachersPage> {
     return error.toString();
   }
 
+  void _showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
+  }
   Future<void> showAddTeacherDialog() async {
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController();
@@ -382,9 +456,13 @@ class _AdminTeachersPageState extends State<AdminTeachersPage> {
                   ],
                 ),
               ),
-              trailing: const Icon(
-                Icons.verified_user_outlined,
-                color: primaryColor,
+              trailing: IconButton(
+                onPressed: () => _confirmDeleteTeacher(teacher),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.red,
+                ),
+                tooltip: 'Hapus Guru',
               ),
             ),
           );

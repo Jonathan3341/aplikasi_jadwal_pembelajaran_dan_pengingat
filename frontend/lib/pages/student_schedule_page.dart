@@ -7,14 +7,14 @@ import '../widgets/empty_state.dart';
 import '../widgets/calendar_widget.dart';
 import '../widgets/schedule_card.dart';
 
-class SchedulePage extends StatefulWidget {
-  const SchedulePage({super.key});
+class StudentSchedulePage extends StatefulWidget {
+  const StudentSchedulePage({super.key});
 
   @override
-  State<SchedulePage> createState() => _SchedulePageState();
+  State<StudentSchedulePage> createState() => _StudentSchedulePageState();
 }
 
-class _SchedulePageState extends State<SchedulePage> {
+class _StudentSchedulePageState extends State<StudentSchedulePage> {
   bool isDaily = true;
   bool isMonthly = false;
 
@@ -282,55 +282,116 @@ class _SchedulePageState extends State<SchedulePage> {
     );
   }
 
+
   Widget _scheduleCard(ScheduleItem schedule) {
-    return Card(
-      color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-        title: Text(
-          schedule.subject,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+    return GestureDetector(
+      onTap: () {
+        _openScheduleDetail(schedule);
+      },
+      onDoubleTap: () {
+        _toggleScheduleReminder(schedule);
+      },
+      onLongPress: () {
+        _showScheduleActions(schedule);
+      },
+      child: Card(
+        color: Colors.white,
+        margin: const EdgeInsets.only(bottom: 10),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 5,
+          ),
+          title: Text(
+            schedule.subject,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(schedule.timeText),
+                if (schedule.room.isNotEmpty)
+                  Text('Ruangan: ${schedule.room}'),
+                if (schedule.lecturer.isNotEmpty)
+                  Text('Dosen: ${schedule.lecturer}'),
+                if (schedule.className != null)
+                  Text('Kelas: ${schedule.className}'),
+              ],
+            ),
+          ),
+          trailing: IconButton(
+            tooltip: schedule.reminderEnabled
+                ? 'Matikan pengingat pribadi'
+                : 'Aktifkan pengingat pribadi',
+            icon: Icon(
+              schedule.reminderEnabled
+                  ? Icons.notifications_active
+                  : Icons.notifications_off_outlined,
+              color: schedule.reminderEnabled
+                  ? const Color(0xFFFF7A00)
+                  : Colors.grey,
+            ),
+            onPressed: () {
+              _toggleScheduleReminder(schedule);
+            },
+          ),
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+    );
+  }
+
+  void _openScheduleDetail(ScheduleItem schedule) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ScheduleDetailPage(schedule: schedule),
+      ),
+    );
+  }
+
+  void _showScheduleActions(ScheduleItem schedule) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Wrap(
             children: [
-              Text(schedule.timeText),
-              if (schedule.room.isNotEmpty) Text('Ruangan: ${schedule.room}'),
-              if (schedule.lecturer.isNotEmpty)
-                Text('Dosen: ${schedule.lecturer}'),
-              if (schedule.className != null)
-                Text('Kelas: ${schedule.className}'),
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('Lihat Detail Jadwal'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _openScheduleDetail(schedule);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  schedule.reminderEnabled
+                      ? Icons.notifications_off_outlined
+                      : Icons.notifications_active_outlined,
+                  color: const Color(0xFFFF7A00),
+                ),
+                title: Text(
+                  schedule.reminderEnabled
+                      ? 'Matikan Pengingat'
+                      : 'Aktifkan Pengingat',
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _toggleScheduleReminder(schedule);
+                },
+              ),
             ],
           ),
-        ),
-        trailing: IconButton(
-          tooltip: schedule.reminderEnabled
-              ? 'Matikan pengingat pribadi'
-              : 'Aktifkan pengingat pribadi',
-          icon: Icon(
-            schedule.reminderEnabled
-                ? Icons.notifications_active
-                : Icons.notifications_off_outlined,
-            color: schedule.reminderEnabled
-                ? const Color(0xFFFF7A00)
-                : Colors.grey,
-          ),
-          onPressed: () {
-            _toggleScheduleReminder(schedule);
-          },
-        ),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ScheduleDetailPage(schedule: schedule),
-            ),
-          );
-        },
-      ),
+        );
+      },
     );
   }
 

@@ -14,8 +14,9 @@
 
     <application
         android:label="aplikasi_jadwal_pembelajaran_dan_pengingat"
-        android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+            android:name="${applicationName}"
+            android:icon="@mipmap/ic_launcher"
+            android:usesCleartextTraffic="true">
         <receiver
             android:exported="false"
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />

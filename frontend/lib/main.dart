@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_data.dart';
-import 'pages/splash_page.dart';
+import 'pages/auth_splash_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

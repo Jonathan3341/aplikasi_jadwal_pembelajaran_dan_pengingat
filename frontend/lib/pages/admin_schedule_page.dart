@@ -287,7 +287,7 @@ class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
                         const SizedBox(height: 14),
 
                         DropdownButtonFormField<int>(
-                          value: selectedClassId,
+                            initialValue: selectedClassId,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Kelas Akademik',
@@ -318,7 +318,7 @@ class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
                         const SizedBox(height: 14),
 
                         DropdownButtonFormField<int>(
-                          value: selectedTeacherId,
+                          initialValue: selectedTeacherId,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Guru Pengajar',
@@ -362,7 +362,7 @@ class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
                         const SizedBox(height: 14),
 
                         DropdownButtonFormField<int>(
-                          value: selectedWeekday,
+                          initialValue: selectedWeekday,
                           decoration: const InputDecoration(
                             labelText: 'Hari',
                             border: OutlineInputBorder(),
@@ -479,7 +479,7 @@ class _AdminSchedulesPageState extends State<AdminSchedulesPage> {
 
                         if (reminderEnabled)
                           DropdownButtonFormField<int>(
-                            value: reminderMinutes,
+                            initialValue: reminderMinutes,
                             decoration: const InputDecoration(
                               labelText: 'Ingatkan sebelum kelas',
                               border: OutlineInputBorder(),

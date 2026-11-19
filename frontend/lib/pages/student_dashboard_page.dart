@@ -9,24 +9,22 @@ import '../widgets/schedule_card.dart';
 import '../widgets/reminder_card.dart';
 import '../widgets/section_header.dart';
 
-import 'learning_tasks_page.dart';
-import 'api_tasks_page.dart';
-import 'attendance_map_page.dart';
+import 'student_attendance_map_page.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key, this.onNavigate});
+class StudentDashboardPage extends StatefulWidget {
+  const StudentDashboardPage({super.key, this.onNavigate});
 
   final ValueChanged<int>? onNavigate;
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<StudentDashboardPage> createState() => _StudentDashboardPageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _StudentDashboardPageState extends State<StudentDashboardPage> {
   // Key untuk memperbarui kartu absensi setelah kembali
   // dari halaman Absensi Lokasi.
-  final GlobalKey<_AttendanceSemesterCardState> _attendanceCardKey =
-      GlobalKey<_AttendanceSemesterCardState>();
+  final GlobalKey<_AttendanceSummaryCardState> _attendanceCardKey =
+  GlobalKey<_AttendanceSummaryCardState>();
 
   @override
   Widget build(BuildContext context) {
@@ -84,60 +82,7 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 10),
 
                   // Kehadiran sekarang mengambil data dari API.
-                  _AttendanceSemesterCard(key: _attendanceCardKey),
-
-                  const SizedBox(height: 10),
-
-                  Card(
-                    color: Colors.white,
-                    child: ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: Color(0xFFFFE2CC),
-                        child: Icon(Icons.storage, color: Color(0xFFFF7A00)),
-                      ),
-                      title: const Text('Tugas Pembelajaran'),
-                      subtitle: const Text(
-                        'Tambah, edit, dan kelola tugas dengan SQLite',
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const LearningTasksPage(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Card(
-                    color: Colors.white,
-                    child: ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: Color(0xFFFFE2CC),
-                        child: Icon(
-                          Icons.cloud_download_outlined,
-                          color: Color(0xFFFF7A00),
-                        ),
-                      ),
-                      title: const Text('Data Tugas dari API'),
-                      subtitle: const Text(
-                        'Ambil dan tampilkan data dari REST API',
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ApiTasksPage(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                  _AttendanceSummaryCard(key: _attendanceCardKey),
 
                   const SizedBox(height: 10),
 
@@ -174,7 +119,8 @@ class _HomePageState extends State<HomePage> {
                   SectionHeader(
                     title: 'Pengingat Terdekat',
                     onPressed: () {
-                      widget.onNavigate?.call(2);
+                      // Mengarahkan pengguna ke halaman Jadwal.
+                      widget.onNavigate?.call(1);
                     },
                   ),
 
@@ -248,20 +194,21 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// KARTU KEHADIRAN SEMESTER
 
-class _AttendanceSemesterCard extends StatefulWidget {
-  const _AttendanceSemesterCard({super.key});
+// KARTU REKAP KEHADIRAN KESELURUHAN
+
+class _AttendanceSummaryCard extends StatefulWidget {
+  const _AttendanceSummaryCard({super.key});
 
   @override
-  State<_AttendanceSemesterCard> createState() =>
-      _AttendanceSemesterCardState();
+  State<_AttendanceSummaryCard> createState() =>
+      _AttendanceSummaryCardState();
 }
 
-class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
+class _AttendanceSummaryCardState extends State<_AttendanceSummaryCard> {
   final ApiService _apiService = ApiService.instance;
 
-  List<Map<String, dynamic>> _attendanceRecords = [];
+  Map<String, dynamic>? _summary;
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -272,9 +219,9 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
     loadAttendance();
   }
 
-  // Mengambil riwayat absensi langsung dari backend.
+  // Mengambil rekap kehadiran keseluruhan dari backend.
   Future<void> loadAttendance() async {
-    if (!mounted || _isLoading && _attendanceRecords.isNotEmpty) {
+    if (!mounted || (_isLoading && _summary != null)) {
       return;
     }
 
@@ -284,14 +231,12 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
     });
 
     try {
-      final records = await _apiService.fetchMyAttendance();
+      final summary = await _apiService.fetchMyAttendanceSummary();
 
       if (!mounted) return;
 
-      // Endpoint saat ini mengembalikan seluruh riwayat absensi.
-      // Semua record yang dikembalikan dihitung.
       setState(() {
-        _attendanceRecords = records;
+        _summary = summary;
       });
     } catch (e) {
       if (!mounted) return;
@@ -308,28 +253,16 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
     }
   }
 
-  // Menghitung kehadiran tepat waktu.
-  int get _presentCount {
-    return _attendanceRecords.where((item) {
-      final status = item['status']?.toString().toLowerCase();
-
-      return status == 'hadir';
-    }).length;
+  // Membaca jumlah dari respons API.
+  int _readCount(String key) {
+    return int.tryParse(_summary?[key]?.toString() ?? '') ?? 0;
   }
 
-  // Menghitung kehadiran terlambat.
-  int get _lateCount {
-    return _attendanceRecords.where((item) {
-      final status = item['status']?.toString().toLowerCase();
+  int get _totalMeetings => _readCount('total_meetings');
 
-      return status == 'terlambat';
-    }).length;
-  }
+  int get _presentCount => _readCount('present_count');
 
-  // Total semua record absensi.
-  int get _totalAttendance {
-    return _attendanceRecords.length;
-  }
+  int get _absentCount => _readCount('absent_count');
 
   @override
   Widget build(BuildContext context) {
@@ -350,16 +283,17 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Judul dan tombol refresh.
           Row(
             children: [
               const Expanded(
                 child: Text(
-                  'Kehadiran Semester Ini',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  'Rekap Kehadiran Keseluruhan',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-
               IconButton(
                 tooltip: 'Perbarui kehadiran',
                 visualDensity: VisualDensity.compact,
@@ -397,8 +331,11 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Total absensi tercatat',
-          style: TextStyle(fontSize: 11, color: Colors.black54),
+          'Total Pertemuan',
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.black54,
+          ),
         ),
 
         const SizedBox(height: 2),
@@ -407,7 +344,7 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              '$_totalAttendance',
+              '$_totalMeetings',
               style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -418,7 +355,10 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
               padding: EdgeInsets.only(left: 6, bottom: 5),
               child: Text(
                 'pertemuan',
-                style: TextStyle(fontSize: 11, color: Colors.black54),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.black54,
+                ),
               ),
             ),
           ],
@@ -441,10 +381,10 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
 
             Expanded(
               child: _buildStatisticItem(
-                label: 'Terlambat',
-                count: _lateCount,
-                color: Colors.orange,
-                icon: Icons.access_time,
+                label: 'Tidak Hadir',
+                count: _absentCount,
+                color: Colors.red,
+                icon: Icons.cancel_outlined,
               ),
             ),
           ],
@@ -453,24 +393,30 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
         const SizedBox(height: 10),
 
         Text(
-          _totalAttendance == 0
-              ? 'Belum ada data absensi yang tersimpan.'
-              : 'Data diperbarui dari riwayat absensi server.',
-          style: const TextStyle(fontSize: 10, color: Colors.black54),
+          _totalMeetings == 0
+              ? 'Belum ada pertemuan yang selesai dihitung.'
+              : 'Rekap mencakup seluruh pertemuan yang telah selesai.',
+          style: const TextStyle(
+            fontSize: 10,
+            color: Colors.black54,
+          ),
         ),
 
         const SizedBox(height: 4),
 
-        if (_totalAttendance > 0)
+        if (_totalMeetings > 0)
           Text(
             'Terakhir diperbarui: ${TimeOfDay.now().format(context)}',
-            style: const TextStyle(fontSize: 10, color: Colors.black38),
+            style: const TextStyle(
+              fontSize: 10,
+              color: Colors.black38,
+            ),
           ),
       ],
     );
   }
 
-  // Komponen angka Hadir dan Terlambat.
+  // Komponen angka statistik.
   Widget _buildStatisticItem({
     required String label,
     required int count,
@@ -478,7 +424,10 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 10,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(9),
@@ -503,7 +452,10 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
                 ),
                 Text(
                   label,
-                  style: const TextStyle(fontSize: 10, color: Colors.black54),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.black54,
+                  ),
                 ),
               ],
             ),
@@ -527,7 +479,11 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
         children: [
           const Row(
             children: [
-              Icon(Icons.error_outline, color: Colors.red, size: 18),
+              Icon(
+                Icons.error_outline,
+                color: Colors.red,
+                size: 18,
+              ),
               SizedBox(width: 6),
               Text(
                 'Gagal mengambil data kehadiran',
@@ -544,7 +500,10 @@ class _AttendanceSemesterCardState extends State<_AttendanceSemesterCard> {
 
           Text(
             _errorMessage!,
-            style: const TextStyle(fontSize: 11, color: Colors.black54),
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.black54,
+            ),
           ),
 
           const SizedBox(height: 8),

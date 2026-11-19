@@ -1,56 +1,49 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import 'main_page.dart';
+import 'auth_register_page.dart';
 
-class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _nimController = TextEditingController();
-  final _majorController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _nimController.dispose();
-    _majorController.dispose();
-
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
-
     super.dispose();
   }
 
-  Future<void> _register() async {
+  Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      await AuthService.instance.register(
-        name: _nameController.text,
+      await AuthService.instance.login(
         email: _emailController.text,
         password: _passwordController.text,
-        nim: _nimController.text,
-        major: _majorController.text,
       );
 
       if (!mounted) return;
 
-      Navigator.pop(context, true);
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainPage()),
+        (route) => false,
+      );
     } catch (e) {
       if (!mounted) return;
 
@@ -67,10 +60,24 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
+  Future<void> _openRegister() async {
+    final registered = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const RegisterPage()),
+    );
+
+    if (!mounted) return;
+
+    if (registered == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Registrasi berhasil. Silakan login.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Buat Akun')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -81,77 +88,24 @@ class _RegisterPageState extends State<RegisterPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Icon(
-                    Icons.person_add_alt_1_rounded,
-                    size: 64,
+                    Icons.school_rounded,
+                    size: 72,
                     color: Color(0xFFFF7A00),
                   ),
                   const SizedBox(height: 20),
                   const Text(
-                    'Daftar Akun Baru',
+                    'Selamat Datang',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 28),
-
-                  // Nama lengkap
-                  TextFormField(
-                    controller: _nameController,
-                    keyboardType: TextInputType.name,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Nama Lengkap',
-                      prefixIcon: Icon(Icons.person_outline),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Nama lengkap wajib diisi.';
-                      }
-
-                      return null;
-                    },
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Login untuk melanjutkan ke Jadwal Pembelajaran',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.black54),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 32),
 
-                  // NIM
-                  TextFormField(
-                    controller: _nimController,
-                    keyboardType: TextInputType.text,
-                    decoration: const InputDecoration(
-                      labelText: 'NIM',
-                      prefixIcon: Icon(Icons.badge_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'NIM wajib diisi.';
-                      }
-
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Jurusan
-                  TextFormField(
-                    controller: _majorController,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Jurusan',
-                      prefixIcon: Icon(Icons.school_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Jurusan wajib diisi.';
-                      }
-
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  //email
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -174,7 +128,6 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  //password
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -200,29 +153,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         return 'Password wajib diisi.';
                       }
 
-                      if (value.length < 8) {
-                        return 'Password minimal 8 karakter.';
-                      }
-
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  //confrim password
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Konfirmasi Password',
-                      prefixIcon: Icon(Icons.lock_reset_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value != _passwordController.text) {
-                        return 'Konfirmasi password tidak sama.';
-                      }
-
                       return null;
                     },
                   ),
@@ -231,7 +161,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   SizedBox(
                     height: 50,
                     child: FilledButton(
-                      onPressed: _isLoading ? null : _register,
+                      onPressed: _isLoading ? null : _login,
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFFFF7A00),
                       ),
@@ -244,8 +174,14 @@ class _RegisterPageState extends State<RegisterPage> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Daftar'),
+                          : const Text('Login'),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  TextButton(
+                    onPressed: _isLoading ? null : _openRegister,
+                    child: const Text('Belum punya akun? Daftar sekarang'),
                   ),
                 ],
               ),

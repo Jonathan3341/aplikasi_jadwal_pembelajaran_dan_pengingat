@@ -231,7 +231,7 @@ class _AdminClassesPageState extends State<AdminClassesPage> {
                   : ListView.separated(
                       shrinkWrap: true,
                       itemCount: students.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final student = students[index];
 
@@ -250,102 +250,12 @@ class _AdminClassesPageState extends State<AdminClassesPage> {
                 onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Tutup'),
               ),
-              FilledButton.icon(
-                onPressed: () async {
-                  Navigator.pop(dialogContext);
-                  await _showAssignStudent(classId, className);
-                },
-                icon: const Icon(Icons.person_add),
-                label: const Text('Tambah Murid'),
-              ),
             ],
           );
         },
       );
     } catch (error) {
       _showMessage('Gagal mengambil data murid: $error');
-    }
-  }
-
-  Future<void> _showAssignStudent(int classId, String className) async {
-    try {
-      final result = await ApiService.instance.fetchStudents(unassigned: true);
-
-      if (!mounted) return;
-
-      final students = List<Map<String, dynamic>>.from(result);
-
-      if (students.isEmpty) {
-        _showMessage('Tidak ada murid yang belum memiliki kelas.');
-        return;
-      }
-
-      String? selectedNim;
-
-      final nim = await showDialog<String>(
-        context: context,
-        builder: (dialogContext) {
-          return StatefulBuilder(
-            builder: (context, setDialogState) {
-              return AlertDialog(
-                title: const Text('Tambah Murid ke Kelas'),
-                content: DropdownButtonFormField<String>(
-                  value: selectedNim,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Pilih Murid',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: students.map((student) {
-                    final studentNim = student['nim'].toString();
-                    final studentName =
-                        student['name']?.toString() ?? 'Tanpa nama';
-
-                    return DropdownMenuItem<String>(
-                      value: studentNim,
-                      child: Text(
-                        '$studentName ($studentNim)',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setDialogState(() {
-                      selectedNim = value;
-                    });
-                  },
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('Batal'),
-                  ),
-                  FilledButton(
-                    onPressed: selectedNim == null
-                        ? null
-                        : () => Navigator.pop(dialogContext, selectedNim),
-                    child: const Text('Tambahkan'),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
-
-      if (nim == null) return;
-
-      await ApiService.instance.assignStudentToClass(
-        nim: nim,
-        classId: classId,
-      );
-
-      _showMessage('Murid berhasil dimasukkan ke $className.');
-
-      await _showStudents(classId, className);
-      await _loadClasses();
-    } catch (error) {
-      _showMessage('Gagal memasukkan murid: $error');
     }
   }
 

@@ -1,3 +1,4 @@
+
 import 'package:dio/dio.dart';
 
 import 'api_service.dart';
@@ -52,6 +53,21 @@ class AuthService {
   }
 
   // ==========================================
+  // REGISTRATION CLASSES
+  // ==========================================
+
+  // Mengambil daftar kelas untuk dropdown registrasi.
+  Future<List<Map<String, dynamic>>> fetchRegistrationClasses() async {
+    await _api.init();
+
+    try {
+      return await _api.fetchRegistrationClasses();
+    } on DioException catch (e) {
+      throw Exception(_getErrorMessage(e));
+    }
+  }
+
+  // ==========================================
   // REGISTER
   // ==========================================
 
@@ -60,7 +76,7 @@ class AuthService {
     required String email,
     required String password,
     required String nim,
-    required String major,
+    required int classId,
   }) async {
     await _api.init();
 
@@ -72,7 +88,7 @@ class AuthService {
           'email': email.trim(),
           'password': password,
           'nim': nim.trim(),
-          'major': major.trim(),
+          'class_id': classId,
         },
       );
     } on DioException catch (e) {
@@ -93,7 +109,10 @@ class AuthService {
     try {
       final response = await _api.dio.post(
         '/api/user/login',
-        data: {'email': email.trim(), 'password': password},
+        data: {
+          'email': email.trim(),
+          'password': password,
+        },
       );
 
       final data = Map<String, dynamic>.from(response.data);

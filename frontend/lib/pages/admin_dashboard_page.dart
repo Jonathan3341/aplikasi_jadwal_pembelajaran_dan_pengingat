@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'admin_unassigned_students_page.dart';
 import 'admin_classes_page.dart';
 import 'admin_schedule_page.dart';
 import 'admin_teachers_page.dart';
+
 
 class AdminDashboardPage extends StatelessWidget {
   final Map<String, dynamic> profile;
@@ -107,34 +107,6 @@ class AdminDashboardPage extends StatelessWidget {
 
               const SizedBox(height: 10),
 
-              Card(
-                child: ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFFFE2CC),
-                    child: Icon(
-                      Icons.person_add_alt_1,
-                      color: Color(0xFFFF7A00),
-                    ),
-                  ),
-                  title: const Text('Mahasiswa Tanpa Kelas'),
-                  subtitle: const Text(
-                    'Cari dan tempatkan mahasiswa ke kelas akademik.',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                        const AdminUnassignedStudentsPage(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
               _managementCard(
                 context,
                 icon: Icons.people_alt_outlined,
@@ -166,6 +138,8 @@ class AdminDashboardPage extends StatelessWidget {
                   );
                 },
               ),
+
+
 
               const SizedBox(height: 24),
 

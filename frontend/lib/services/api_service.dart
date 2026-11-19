@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
+
 import '../models/api_task.dart';
 
 import 'cookie_config_io.dart' if (dart.library.html) 'cookie_config_web.dart';
@@ -27,10 +28,35 @@ class ApiService {
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:5000';
+      return 'http://192.168.1.10:5000';
     }
 
     return 'http://localhost:5000';
+  }
+
+
+  //guru update tugas
+  Future<Map<String, dynamic>> updateAssignment({
+    required int id,
+    required String title,
+    required String description,
+  }) async {
+    final response = await dio.put(
+      '/api/assignments/$id',
+      data: {
+        'title': title,
+        'description': description,
+      },
+    );
+
+    return Map<String, dynamic>.from(
+      response.data['data'],
+    );
+  }
+
+  //admin menghapus guru
+  Future<void> deleteTeacher(int id) async {
+    await dio.delete('/api/admin/teachers/$id');
   }
 
   // Mengambil daftar murid dari kelas yang ditugaskan kepada Guru.
@@ -206,6 +232,22 @@ class ApiService {
 
     return Map<String, dynamic>.from(response.data['data']);
   }
+
+  // Mengambil daftar kelas yang tersedia untuk registrasi Murid.
+  // Endpoint ini bersifat publik sehingga dapat dipanggil
+  // sebelum pengguna melakukan login.
+  Future<List<Map<String, dynamic>>> fetchRegistrationClasses() async {
+    final response = await dio.get(
+      '/api/user/registration-classes',
+    );
+
+    final data = response.data['data'] as List;
+
+    return data
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
   // ==========================================
   // ADMIN - ACADEMIC CLASSES
   // ==========================================
@@ -241,16 +283,14 @@ class ApiService {
   // ADMIN - STUDENTS
   // ==========================================
 
+  // Mengambil daftar Murid dari backend.
   Future<List<Map<String, dynamic>>> fetchStudents({
     int? classId,
-    bool unassigned = false,
     String? search,
   }) async {
     final queryParameters = <String, dynamic>{};
 
-    if (unassigned) {
-      queryParameters['class_id'] = 'unassigned';
-    } else if (classId != null) {
+    if (classId != null) {
       queryParameters['class_id'] = classId;
     }
 
@@ -265,20 +305,11 @@ class ApiService {
 
     final data = response.data['data'] as List;
 
-    return data.map((item) => Map<String, dynamic>.from(item)).toList();
+    return data
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
   }
 
-  Future<Map<String, dynamic>> assignStudentToClass({
-    required String nim,
-    required int? classId,
-  }) async {
-    final response = await dio.put(
-      '/api/admin/students/class',
-      data: {'nim': nim, 'class_id': classId},
-    );
-
-    return Map<String, dynamic>.from(response.data['data']);
-  }
 
   // ==========================================
   // ASSIGNMENTS - TUGAS GURU DAN MURID
@@ -475,5 +506,18 @@ class ApiService {
         .toList();
   }
 
+// Mengambil rekap keseluruhan absensi Murid.
+  Future<Map<String, dynamic>> fetchMyAttendanceSummary() async {
+    final response = await dio.get('/api/attendance/summary');
 
+    final data = response.data['data'];
+
+    if (data is! Map) {
+      throw const FormatException(
+        'Format rekap kehadiran dari server tidak sesuai.',
+      );
+    }
+
+    return Map<String, dynamic>.from(data);
+  }
 }

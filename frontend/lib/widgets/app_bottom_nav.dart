@@ -75,11 +75,6 @@ class AppBottomNav extends StatelessWidget {
         label: 'Tugas',
       ),
       NavigationDestination(
-        icon: Icon(Icons.notifications_none),
-        selectedIcon: Icon(Icons.notifications),
-        label: 'Pengingat',
-      ),
-      NavigationDestination(
         icon: Icon(Icons.person_outline),
         selectedIcon: Icon(Icons.person),
         label: 'Profil',

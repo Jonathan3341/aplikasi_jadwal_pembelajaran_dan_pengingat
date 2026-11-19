@@ -30,7 +30,7 @@ class _TeacherCreateAssignmentPageState
   String? _selectedClassId;
   DateTime? _dueDate;
 
-  List<PlatformFile> _selectedFiles = [];
+  final List<PlatformFile> _selectedFiles = [];
   final List<Map<String, dynamic>> _links = [];
 
   bool _isSaving = false;

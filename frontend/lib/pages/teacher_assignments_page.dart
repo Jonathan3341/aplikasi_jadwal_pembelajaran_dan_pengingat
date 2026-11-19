@@ -13,8 +13,7 @@ class TeacherAssignmentsPage extends StatefulWidget {
       _TeacherAssignmentsPageState();
 }
 
-class _TeacherAssignmentsPageState
-    extends State<TeacherAssignmentsPage> {
+class _TeacherAssignmentsPageState extends State<TeacherAssignmentsPage> {
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -25,9 +24,9 @@ class _TeacherAssignmentsPageState
   void initState() {
     super.initState();
     _loadData();
-
-
   }
+
+  // Membuka halaman pembuatan tugas.
   Future<void> _openCreateAssignment() async {
     if (_classes.isEmpty) {
       _showMessage('Belum ada kelas pada jadwal mengajar kamu.');
@@ -43,17 +42,168 @@ class _TeacherAssignmentsPageState
       ),
     );
 
-    if (result == true) {
+    if (result == true && mounted) {
       _loadData();
     }
   }
 
+  // Menampilkan pesan.
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
   }
 
+  // Mengedit judul dan instruksi tugas.
+  Future<void> _editAssignment(
+      Map<String, dynamic> assignment,
+      ) async {
+    final assignmentId = int.tryParse(
+      assignment['id']?.toString() ?? '',
+    );
+
+    if (assignmentId == null) {
+      _showMessage('ID tugas tidak valid.');
+      return;
+    }
+
+    final titleController = TextEditingController(
+      text: assignment['title']?.toString() ?? '',
+    );
+
+    final descriptionController = TextEditingController(
+      text: assignment['description']?.toString() ?? '',
+    );
+
+    final formKey = GlobalKey<FormState>();
+
+    bool? confirmed;
+    String newTitle = '';
+    String newDescription = '';
+
+    try {
+      confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Edit Tugas'),
+            content: SizedBox(
+              width: 420,
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Judul Tugas',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: titleController,
+                        decoration: const InputDecoration(
+                          hintText: 'Masukkan judul tugas',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Judul tugas wajib diisi.';
+                          }
+
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Instruksi Tugas',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: descriptionController,
+                        maxLines: 5,
+                        decoration: const InputDecoration(
+                          hintText: 'Masukkan instruksi tugas',
+                          border: OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext, false);
+                },
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (formKey.currentState!.validate()) {
+                    Navigator.pop(dialogContext, true);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF7A00),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Simpan Perubahan'),
+              ),
+            ],
+          );
+        },
+      );
+
+      // Ambil nilai sebelum controller di-dispose.
+      if (confirmed == true) {
+        newTitle = titleController.text.trim();
+        newDescription = descriptionController.text.trim();
+      }
+    } finally {
+      titleController.dispose();
+      descriptionController.dispose();
+    }
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final updatedAssignment =
+      await ApiService.instance.updateAssignment(
+        id: assignmentId,
+        title: newTitle,
+        description: newDescription,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        final index = _assignments.indexWhere(
+              (item) => item['id'].toString() == assignmentId.toString(),
+        );
+
+        if (index != -1) {
+          _assignments[index] = updatedAssignment;
+        }
+      });
+
+      _showMessage('Tugas berhasil diperbarui.');
+    } catch (e) {
+      if (!mounted) return;
+
+      _showMessage('Gagal memperbarui tugas: $e');
+    }
+  }
+
+  // Mengambil daftar tugas dan kelas yang diajar Guru.
   Future<void> _loadData() async {
     if (mounted) {
       setState(() {
@@ -104,6 +254,7 @@ class _TeacherAssignmentsPageState
     }
   }
 
+  // Mengubah format tanggal tenggat tugas.
   String _formatDate(dynamic value) {
     if (value == null || value.toString().isEmpty) {
       return 'Tidak ada tenggat';
@@ -120,7 +271,7 @@ class _TeacherAssignmentsPageState
         '${localDate.year}';
   }
 
-
+  // Membuat kartu tugas.
   Widget _buildAssignmentCard(Map<String, dynamic> assignment) {
     final className =
         assignment['class_name']?.toString() ?? 'Kelas';
@@ -200,6 +351,17 @@ class _TeacherAssignmentsPageState
                     ),
                   ),
                   const SizedBox(width: 4),
+
+                  // Tombol edit tugas.
+                  IconButton(
+                    onPressed: () => _editAssignment(assignment),
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      color: Color(0xFFFF7A00),
+                    ),
+                    tooltip: 'Edit tugas',
+                  ),
+
                   Icon(
                     Icons.chevron_right,
                     color: Colors.grey.shade500,
@@ -256,7 +418,6 @@ class _TeacherAssignmentsPageState
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -284,7 +445,9 @@ class _TeacherAssignmentsPageState
         label: const Text('Buat Tugas'),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+        child: CircularProgressIndicator(),
+      )
           : _errorMessage != null
           ? Center(
         child: Padding(
@@ -385,6 +548,7 @@ class _TeacherAssignmentsPageState
     );
   }
 
+  // Membuat kartu statistik.
   Widget _buildStatCard(
       String title,
       String value,
@@ -399,7 +563,10 @@ class _TeacherAssignmentsPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: const Color(0xFFFF7A00)),
+          Icon(
+            icon,
+            color: const Color(0xFFFF7A00),
+          ),
           const SizedBox(height: 12),
           Text(
             value,

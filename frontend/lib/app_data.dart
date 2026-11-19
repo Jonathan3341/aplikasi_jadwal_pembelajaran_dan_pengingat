@@ -1,3 +1,4 @@
+
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -22,26 +23,6 @@ class ReminderItem {
     required this.dueAt,
     this.notificationEnabled = true,
   });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'description': description,
-      'dueAt': dueAt.toIso8601String(),
-      'notificationEnabled': notificationEnabled,
-    };
-  }
-
-  factory ReminderItem.fromJson(Map<String, dynamic> json) {
-    return ReminderItem(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'] ?? '',
-      dueAt: DateTime.parse(json['dueAt']),
-      notificationEnabled: json['notificationEnabled'] ?? true,
-    );
-  }
 }
 
 class AppData extends ChangeNotifier {
@@ -49,7 +30,6 @@ class AppData extends ChangeNotifier {
 
   static final AppData instance = AppData._();
 
-  // ID khusus untuk membedakan pengingat kelas dan pengingat manual.
   static const String scheduleReminderPrefix = 'schedule_';
 
   final SharedPreferencesAsync _prefs = SharedPreferencesAsync();
@@ -79,25 +59,12 @@ class AppData extends ChangeNotifier {
   // ==========================================
 
   Future<void> load() async {
-    final remindersJson = await _prefs.getString('reminders');
+    // Menghapus penyimpanan pengingat manual versi sebelumnya.
+    await _prefs.remove('reminders');
 
     reminders.clear();
-
-    if (remindersJson != null) {
-      final List<dynamic> decoded = jsonDecode(remindersJson);
-
-      for (final item in decoded) {
-        final reminder = ReminderItem.fromJson(Map<String, dynamic>.from(item));
-
-        // Pengingat kelas dibuat ulang dari backend,
-        // sehingga tidak perlu dimuat dari SharedPreferences.
-        if (!reminder.id.startsWith(scheduleReminderPrefix)) {
-          reminders.add(reminder);
-        }
-      }
-    }
-
     schedules.clear();
+
     loaded = true;
     notifyListeners();
   }
@@ -125,7 +92,8 @@ class AppData extends ChangeNotifier {
         final decoded = jsonDecode(savedSettings);
 
         if (decoded is Map) {
-          _scheduleReminderSettings = Map<String, dynamic>.from(decoded);
+          _scheduleReminderSettings =
+          Map<String, dynamic>.from(decoded);
         }
       }
 
@@ -147,7 +115,7 @@ class AppData extends ChangeNotifier {
 
       schedules.addAll(fetchedSchedules);
 
-      // Buat pengingat lokal berdasarkan jadwal terbaru.
+      // Membuat pengingat lokal berdasarkan jadwal terbaru.
       for (final schedule in schedules) {
         _syncScheduleReminder(schedule);
       }
@@ -169,7 +137,8 @@ class AppData extends ChangeNotifier {
 
     final today = DateTime(now.year, now.month, now.day);
 
-    final daysUntilClass = (schedule.weekday - now.weekday + 7) % 7;
+    final daysUntilClass =
+        (schedule.weekday - now.weekday + 7) % 7;
 
     var classStart = today.add(
       Duration(
@@ -209,8 +178,10 @@ class AppData extends ChangeNotifier {
 
     final descriptionParts = [
       'Mulai pukul ${schedule.startText}',
-      if (schedule.room.trim().isNotEmpty) 'Ruangan ${schedule.room}',
-      if (schedule.lecturer.trim().isNotEmpty) 'Dosen ${schedule.lecturer}',
+      if (schedule.room.trim().isNotEmpty)
+        'Ruangan ${schedule.room}',
+      if (schedule.lecturer.trim().isNotEmpty)
+        'Dosen ${schedule.lecturer}',
     ];
 
     reminders.add(
@@ -225,27 +196,32 @@ class AppData extends ChangeNotifier {
   }
 
   void _removeAllScheduleReminders() {
-    reminders.removeWhere((item) => item.id.startsWith(scheduleReminderPrefix));
+    reminders.removeWhere(
+          (item) => item.id.startsWith(scheduleReminderPrefix),
+    );
   }
 
   Future<void> setScheduleReminderPreference(
-    String scheduleId, {
-    required bool enabled,
-  }) async {
-    final index = schedules.indexWhere((item) => item.id == scheduleId);
+      String scheduleId, {
+        required bool enabled,
+      }) async {
+    final index = schedules.indexWhere(
+          (item) => item.id == scheduleId,
+    );
 
     if (index == -1) {
       throw Exception('Jadwal tidak ditemukan.');
     }
 
     final schedule = schedules[index];
-
     final oldValue = schedule.reminderEnabled;
 
     // Ubah hanya data lokal.
     schedule.reminderEnabled = enabled;
 
-    _scheduleReminderSettings[scheduleId] = {'enabled': enabled};
+    _scheduleReminderSettings[scheduleId] = {
+      'enabled': enabled,
+    };
 
     try {
       await _prefs.setString(
@@ -267,13 +243,15 @@ class AppData extends ChangeNotifier {
   // ==========================================
 
   Future<ScheduleItem> addSchedule(ScheduleItem item) async {
-    final result = await ApiService.instance.createSchedule(item.toApiJson());
+    final result = await ApiService.instance.createSchedule(
+      item.toApiJson(),
+    );
 
     final savedSchedule = ScheduleItem.fromApiJson(result);
 
     schedules.add(savedSchedule);
 
-    // Sinkronisasi pengingat ke daftar ReminderItem.
+    // Sinkronisasi pengingat berdasarkan jadwal.
     _syncScheduleReminder(savedSchedule);
 
     notifyListeners();
@@ -289,10 +267,13 @@ class AppData extends ChangeNotifier {
 
     final updatedSchedule = ScheduleItem.fromApiJson(result);
 
-    final index = schedules.indexWhere((schedule) => schedule.id == item.id);
+    final index = schedules.indexWhere(
+          (schedule) => schedule.id == item.id,
+    );
 
     if (index != -1) {
-      updatedSchedule.calendarEventId = schedules[index].calendarEventId;
+      updatedSchedule.calendarEventId =
+          schedules[index].calendarEventId;
 
       schedules[index] = updatedSchedule;
     }
@@ -310,7 +291,9 @@ class AppData extends ChangeNotifier {
 
     schedules.removeWhere((schedule) => schedule.id == id);
 
-    reminders.removeWhere((item) => item.id == '$scheduleReminderPrefix$id');
+    reminders.removeWhere(
+          (item) => item.id == '$scheduleReminderPrefix$id',
+    );
 
     notifyListeners();
   }
@@ -318,57 +301,12 @@ class AppData extends ChangeNotifier {
   void clearSchedules() {
     schedules.clear();
 
-    // Jangan biarkan pengingat kelas akun sebelumnya tertinggal.
+    // Menghapus pengingat kelas akun sebelumnya.
     _removeAllScheduleReminders();
 
     schedulesLoading = false;
     scheduleError = null;
 
     notifyListeners();
-  }
-
-  // ==========================================
-  // CRUD MANUAL REMINDER
-  // ==========================================
-
-  Future<void> addReminder(ReminderItem item) async {
-    reminders.add(item);
-
-    await _save();
-
-    notifyListeners();
-  }
-
-  Future<void> updateReminder(ReminderItem item) async {
-    final index = reminders.indexWhere((element) => element.id == item.id);
-
-    if (index != -1) {
-      reminders[index] = item;
-
-      await _save();
-
-      notifyListeners();
-    }
-  }
-
-  Future<void> deleteReminder(String id) async {
-    reminders.removeWhere((element) => element.id == id);
-
-    await _save();
-
-    notifyListeners();
-  }
-
-  // Simpan pengingat manual saja.
-  // Pengingat kelas selalu dibuat ulang dari backend.
-  Future<void> _save() async {
-    final manualReminders = reminders.where(
-      (item) => !item.id.startsWith(scheduleReminderPrefix),
-    );
-
-    await _prefs.setString(
-      'reminders',
-      jsonEncode(manualReminders.map((item) => item.toJson()).toList()),
-    );
   }
 }
