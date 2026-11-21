@@ -3,10 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
 
-
-import '../models/api_task.dart';
 
 import 'cookie_config_io.dart' if (dart.library.html) 'cookie_config_web.dart';
 
@@ -28,14 +25,16 @@ class ApiService {
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://192.168.1.10:5000';
+      return const String.fromEnvironment(
+        'API_BASE_URL',
+        defaultValue: 'http://10.0.2.2:5000',
+      );
     }
 
     return 'http://localhost:5000';
   }
 
-
-  //guru update tugas
+  // Guru memperbarui tugas
   Future<Map<String, dynamic>> updateAssignment({
     required int id,
     required String title,
@@ -167,40 +166,7 @@ class ApiService {
     return token != null && token.isNotEmpty;
   }
 
-  // ==========================================
-  // REST API GET - JSONPLACEHOLDER
-  // Tetap dipertahankan untuk tugas kuliah
-  // ==========================================
-
-  Future<List<ApiTask>> fetchTasks() async {
-    final uri = Uri.parse(
-      'https://jsonplaceholder.typicode.com/todos?_limit=20',
-    );
-
-    final response = await http.get(uri).timeout(const Duration(seconds: 15));
-
-    if (response.statusCode != 200) {
-      throw Exception('Server mengembalikan status ${response.statusCode}');
-    }
-
-    final decoded = jsonDecode(response.body);
-
-    if (decoded is! List) {
-      throw const FormatException('Format respons API tidak sesuai.');
-    }
-
-    return decoded.map((item) {
-      if (item is! Map<String, dynamic>) {
-        throw const FormatException('Data tugas dari API tidak valid.');
-      }
-
-      return ApiTask.fromJson(item);
-    }).toList();
-  }
-
-
-
-// ADMIN - TEACHERS
+  // ADMIN - TEACHERS
 
 // Mengambil daftar akun Guru dari backend.
   Future<List<Map<String, dynamic>>> fetchTeachers() async {

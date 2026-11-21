@@ -426,15 +426,11 @@ db.exec(`
   ON attendance_records(attendance_date);
 `);
 
-db.exec(`
-  DROP TABLE IF EXISTS academic_semesters;
-`);
 // ==========================================
 // INFORMASI DATABASE
 // ==========================================
 
 console.log('SQLite database berhasil diinisialisasi.');
-console.log('Tabel manajemen semester berhasil diperiksa.');
 console.log('Tabel sistem tugas berhasil diperiksa.');
 console.log('Tabel sistem absensi berhasil diperiksa.');
 console.log('Database location:', databasePath);

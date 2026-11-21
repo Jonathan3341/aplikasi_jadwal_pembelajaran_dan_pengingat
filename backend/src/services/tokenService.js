@@ -1,11 +1,9 @@
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
-const ACCESS_EXPIRES = process.env.ACCESS_TOKEN_EXPIRES || '15m';
+const ACCESS_EXPIRES = process.env.ACCESS_TOKEN_EXPIRES || "15m";
 
-const REFRESH_DAYS = Number(
-  process.env.REFRESH_TOKEN_DAYS || 7
-);
+const REFRESH_DAYS = Number(process.env.REFRESH_TOKEN_DAYS || 7);
 
 function createAccessToken(user) {
   return jwt.sign(
@@ -17,7 +15,7 @@ function createAccessToken(user) {
     process.env.JWT_ACCESS_SECRET,
     {
       expiresIn: ACCESS_EXPIRES,
-    }
+    },
   );
 }
 
@@ -25,20 +23,17 @@ function createRefreshToken(user) {
   return jwt.sign(
     {
       sub: String(user.id),
-      type: 'refresh',
+      type: "refresh",
     },
     process.env.JWT_REFRESH_SECRET,
     {
       expiresIn: `${REFRESH_DAYS}d`,
-    }
+    },
   );
 }
 
 function hashToken(token) {
-  return crypto
-    .createHash('sha256')
-    .update(token)
-    .digest('hex');
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 function verifyAccessToken(token) {

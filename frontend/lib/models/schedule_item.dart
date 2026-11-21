@@ -15,7 +15,6 @@ class ScheduleItem {
   bool reminderEnabled;
   int reminderMinutes;
 
-  String? calendarEventId;
 
   // Informasi kelas akademik.
   int? classId;
@@ -34,7 +33,6 @@ class ScheduleItem {
     required this.notes,
     this.reminderEnabled = true,
     this.reminderMinutes = 30,
-    this.calendarEventId,
     this.classId,
     this.className,
   });
@@ -79,49 +77,6 @@ class ScheduleItem {
     return result;
   }
 
-  DateTime occurrenceOn(DateTime date) {
-    return DateTime(date.year, date.month, date.day, startHour, startMinute);
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'subject': subject,
-      'weekday': weekday,
-      'startHour': startHour,
-      'startMinute': startMinute,
-      'endHour': endHour,
-      'endMinute': endMinute,
-      'room': room,
-      'lecturer': lecturer,
-      'notes': notes,
-      'reminderEnabled': reminderEnabled,
-      'reminderMinutes': reminderMinutes,
-      'calendarEventId': calendarEventId,
-      'classId': classId,
-      'className': className,
-    };
-  }
-
-  factory ScheduleItem.fromJson(Map<String, dynamic> json) {
-    return ScheduleItem(
-      id: json['id'].toString(),
-      subject: json['subject'] ?? '',
-      weekday: (json['weekday'] as num).toInt(),
-      startHour: (json['startHour'] as num).toInt(),
-      startMinute: (json['startMinute'] as num).toInt(),
-      endHour: (json['endHour'] as num).toInt(),
-      endMinute: (json['endMinute'] as num).toInt(),
-      room: json['room'] ?? '',
-      lecturer: json['lecturer'] ?? '',
-      notes: json['notes'] ?? '',
-      reminderEnabled: json['reminderEnabled'] ?? true,
-      reminderMinutes: (json['reminderMinutes'] as num?)?.toInt() ?? 30,
-      calendarEventId: json['calendarEventId'],
-      classId: (json['classId'] as num?)?.toInt(),
-      className: json['className'],
-    );
-  }
 
   factory ScheduleItem.fromApiJson(Map<String, dynamic> json) {
     final startParts = (json['start_time'] as String).split(':');
@@ -143,7 +98,6 @@ class ScheduleItem {
       reminderEnabled:
           reminderValue == true || reminderValue == 1 || reminderValue == '1',
       reminderMinutes: (json['reminder_minutes'] as num?)?.toInt() ?? 30,
-      calendarEventId: null,
       classId: (json['class_id'] as num?)?.toInt(),
       className: json['class_name']?.toString(),
     );

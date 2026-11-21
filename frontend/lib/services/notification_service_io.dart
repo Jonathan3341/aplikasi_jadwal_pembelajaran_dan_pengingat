@@ -4,7 +4,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-import '../../app_data.dart';
+import '../app_data.dart';
 
 class NotificationService {
   NotificationService._();
@@ -59,7 +59,7 @@ class NotificationService {
       android: AndroidNotificationDetails(
         'schedule_channel',
         'Jadwal dan Pengingat',
-        channelDescription: 'Notifikasi jadwal kuliah dan tugas',
+        channelDescription: 'Notifikasi pengingat jadwal kelas',
         importance: Importance.high,
         priority: Priority.high,
         playSound: true,
@@ -104,40 +104,10 @@ class NotificationService {
     );
   }
 
-  Future<void> scheduleReminder(ReminderItem item) async {
-    if (!initialized) return;
-
-    await cancelReminder(item.id);
-
-    if (!item.notificationEnabled) return;
-
-    if (item.dueAt.isBefore(DateTime.now())) {
-      return;
-    }
-
-    final scheduledDate = tz.TZDateTime.from(item.dueAt, tz.local);
-
-    await _plugin.zonedSchedule(
-      id: _idFromString(item.id),
-      title: item.title,
-      body: item.description,
-      scheduledDate: scheduledDate,
-      notificationDetails: _details(),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      payload: item.id,
-    );
-  }
-
   Future<void> cancelSchedule(String id) async {
     if (!initialized) return;
 
     await _plugin.cancel(id: _idFromString('$id-reminder'));
-  }
-
-  Future<void> cancelReminder(String id) async {
-    if (!initialized) return;
-
-    await _plugin.cancel(id: _idFromString(id));
   }
 
   Future<void> rescheduleAll() async {
@@ -148,16 +118,6 @@ class NotificationService {
     // Jadwalkan notifikasi kelas.
     for (final schedule in AppData.instance.schedules) {
       await scheduleClass(schedule);
-    }
-
-    // Jadwalkan pengingat manual saja.
-    // Pengingat kelas sudah ditangani scheduleClass().
-    for (final reminder in AppData.instance.reminders) {
-      if (reminder.id.startsWith(AppData.scheduleReminderPrefix)) {
-        continue;
-      }
-
-      await scheduleReminder(reminder);
     }
   }
 

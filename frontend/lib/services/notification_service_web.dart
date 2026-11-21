@@ -52,26 +52,6 @@ class NotificationService {
     );
   }
 
-  Future<void> scheduleReminder(ReminderItem item) async {
-    if (!initialized) return;
-
-    await cancelReminder(item.id);
-
-    if (!item.notificationEnabled) return;
-
-    if (item.dueAt.isBefore(DateTime.now())) {
-      return;
-    }
-
-    _scheduleTimer(
-      key: item.id,
-      scheduledDate: item.dueAt,
-      title: item.title,
-      body: item.description,
-      repeatWeekly: false,
-    );
-  }
-
   void _scheduleTimer({
     required String key,
     required DateTime scheduledDate,
@@ -128,11 +108,6 @@ class NotificationService {
     _timers.remove(key);
   }
 
-  Future<void> cancelReminder(String id) async {
-    _timers[id]?.cancel();
-    _timers.remove(id);
-  }
-
   Future<void> rescheduleAll() async {
     if (!initialized) return;
 
@@ -145,15 +120,6 @@ class NotificationService {
     // Jadwalkan notifikasi kelas.
     for (final schedule in AppData.instance.schedules) {
       await scheduleClass(schedule);
-    }
-
-    // Jadwalkan pengingat manual saja.
-    for (final reminder in AppData.instance.reminders) {
-      if (reminder.id.startsWith(AppData.scheduleReminderPrefix)) {
-        continue;
-      }
-
-      await scheduleReminder(reminder);
     }
   }
 }

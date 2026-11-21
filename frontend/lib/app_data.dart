@@ -37,7 +37,7 @@ class AppData extends ChangeNotifier {
   final List<ScheduleItem> schedules = [];
   final List<ReminderItem> reminders = [];
 
-  // Preferensi pengingat pribadi per akun.
+  // Preferensi pengingat jadwal per akun.
   String _reminderUserId = 'default';
 
   Map<String, dynamic> _scheduleReminderSettings = {};
@@ -45,14 +45,9 @@ class AppData extends ChangeNotifier {
   String get _reminderSettingsKey =>
       'scheduleReminderSettings_$_reminderUserId';
 
-  bool loaded = false;
   bool schedulesLoading = false;
 
   String? scheduleError;
-
-  void refreshUI() {
-    notifyListeners();
-  }
 
   // ==========================================
   // LOAD DATA
@@ -65,7 +60,6 @@ class AppData extends ChangeNotifier {
     reminders.clear();
     schedules.clear();
 
-    loaded = true;
     notifyListeners();
   }
 
@@ -272,9 +266,6 @@ class AppData extends ChangeNotifier {
     );
 
     if (index != -1) {
-      updatedSchedule.calendarEventId =
-          schedules[index].calendarEventId;
-
       schedules[index] = updatedSchedule;
     }
 

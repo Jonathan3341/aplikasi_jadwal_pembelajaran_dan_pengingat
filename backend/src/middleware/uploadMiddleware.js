@@ -1,6 +1,7 @@
 
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 
 // Lokasi folder penyimpanan
@@ -13,6 +14,10 @@ const submissionDirectory = path.join(
   __dirname,
   '../../uploads/submissions'
 );
+
+// Pastikan direktori upload tersedia sebelum menerima file.
+fs.mkdirSync(assignmentDirectory, { recursive: true });
+fs.mkdirSync(submissionDirectory, { recursive: true });
 
 // Jenis file yang diperbolehkan
 const allowedMimeTypes = [
