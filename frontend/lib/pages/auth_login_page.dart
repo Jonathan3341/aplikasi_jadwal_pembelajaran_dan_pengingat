@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'main_page.dart';
 import 'auth_register_page.dart';
+import '../services/preferences_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -26,6 +27,25 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedEmail();
+  }
+
+  Future<void> _loadRememberedEmail() async {
+    final remember = await PreferencesService.instance.getRememberEmail();
+    final email =
+    remember ? await PreferencesService.instance.getSavedEmail() : '';
+    if (!mounted) return;
+    setState(() {
+      _rememberMe = remember;
+      _emailController.text = email;
+    });
+  }
+
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -36,6 +56,13 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text,
         password: _passwordController.text,
       );
+
+      await PreferencesService.instance.setRememberEmail(_rememberMe);
+      if (_rememberMe) {
+        await PreferencesService.instance.saveEmail(_emailController.text.trim());
+      } else {
+        await PreferencesService.instance.clearEmail();
+      }
 
       if (!mounted) return;
 
@@ -156,7 +183,17 @@ class _LoginPageState extends State<LoginPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
+                  CheckboxListTile(
+                    value: _rememberMe,
+                    onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                    title: const Text('Ingat email saya'),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                  const SizedBox(height: 12),
+
+
 
                   SizedBox(
                     height: 50,

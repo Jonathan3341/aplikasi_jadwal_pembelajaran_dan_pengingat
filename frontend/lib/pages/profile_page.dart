@@ -6,6 +6,8 @@ import '../services/auth_service.dart';
 import 'auth_login_page.dart';
 import '../services/api_service.dart';
 import 'student_assignment_detail_page.dart';
+import 'settings_page.dart';
+
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -505,6 +507,20 @@ class _ProfilePageState extends State<ProfilePage> {
                       },
                     ),
                   ],
+
+                  Card(
+                    color: Colors.white,
+                    child: ListTile(
+                      leading: const Icon(Icons.settings_outlined),
+                      title: const Text('Pengaturan'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SettingsPage()),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
 
                   // LOGOUT
 
